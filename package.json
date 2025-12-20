@@ -1,0 +1,12 @@
+{
+  "name": "edge-download-runner",
+  "version": "0.1.0",
+  "description": "Run Selenium-IDE JSON downloads by attaching to Microsoft Edge and forcing downloads to the user's Downloads folder.",
+  "main": "run_downloads_edge.js",
+  "scripts": {
+    "start": "node run_downloads_edge.js"
+  },
+  "dependencies": {
+    "puppeteer-core": "^19.10.0"
+  }
+}
