@@ -5,10 +5,24 @@
  * Clean, user-friendly console output
  */
 
-const puppeteer = require('puppeteer-core');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+
+// Try to find puppeteer-core - check bundled location first, then normal require
+let puppeteer;
+try {
+  // Check if we're running from a packaged app (Resources folder exists)
+  const bundledPath = path.join(__dirname, '..', 'node_modules', 'puppeteer-core');
+  if (fs.existsSync(bundledPath)) {
+    puppeteer = require(bundledPath);
+  } else {
+    puppeteer = require('puppeteer-core');
+  }
+} catch (e) {
+  console.error('Error loading puppeteer-core:', e.message);
+  process.exit(1);
+}
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -252,38 +266,43 @@ async function main() {
   
   // Process each invoice
   for (let i = 1; i <= invoiceCount; i++) {
-    try {
-      // Re-navigate to list if not there
-      const currentUrl = await page.url();
-      if (currentUrl !== listUrl) {
-        await page.goto(listUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-        await sleep(1500);
-      }
-      
-      // Wait for the table to load
+    let retryCount = 0;
+    const maxRetries = 2; // Try 3 times total (initial + 2 retries)
+    
+    while (retryCount <= maxRetries) {
       try {
-        await page.waitForSelector(`xpath/.//table//tbody//tr//td//a`, { timeout: 15000 });
-      } catch (e) {
-        console.log(`  ✗ Page did not load correctly, retrying...`);
-        await page.reload({ waitUntil: 'domcontentloaded' });
-        await sleep(2000);
-      }
-      
-      // Get the invoice link (nth link in first column)
-      const linkXpath = `(.//table//tbody//tr//td[1]//a)[${i}]`;
-      const linkElements = await page.$$(`xpath/${linkXpath}`);
-      
-      if (linkElements.length === 0) {
-        console.log(`Skipping row ${i} - link not found`);
-        continue;
-      }
-      
-      // Get the invoice name/number and href BEFORE clicking (to avoid context issues)
-      let linkText = 'Unknown';
-      let linkHref = '';
-      try {
-        const linkInfo = await page.evaluate(el => ({
-          text: el.textContent?.trim() || 'Unknown',
+        // Re-navigate to list if not there
+        const currentUrl = await page.url();
+        if (currentUrl !== listUrl) {
+          await page.goto(listUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+          await sleep(2000);
+        }
+        
+        // Wait for the table to load
+        try {
+          await page.waitForSelector(`xpath/.//table//tbody//tr//td//a`, { timeout: 15000 });
+          await sleep(500); // Extra wait for page stability
+        } catch (e) {
+          console.log(`  ✗ Page did not load correctly, retrying...`);
+          await page.reload({ waitUntil: 'domcontentloaded' });
+          await sleep(2000);
+        }
+        
+        // Get the invoice link (nth link in first column)
+        const linkXpath = `(.//table//tbody//tr//td[1]//a)[${i}]`;
+        const linkElements = await page.$$(`xpath/${linkXpath}`);
+        
+        if (linkElements.length === 0) {
+          console.log(`Skipping row ${i} - link not found`);
+          break; // Exit retry loop
+        }
+        
+        // Get the invoice name/number and href BEFORE clicking (to avoid context issues)
+        let linkText = 'Unknown';
+        let linkHref = '';
+        try {
+          const linkInfo = await page.evaluate(el => ({
+            text: el.textContent?.trim() || 'Unknown',
           href: el.href || ''
         }), linkElements[0]);
         linkText = linkInfo.text;
@@ -405,15 +424,28 @@ async function main() {
     
     console.log(''); // Empty line between invoices
     
+    break; // Success - exit retry loop
+    
     } catch (loopErr) {
-      console.log(`  ✗ Error processing invoice: ${loopErr.message}`);
-      // Try to get back to list for next invoice
-      try {
-        await page.goto(listUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-        await sleep(1000);
-      } catch (e) {}
-      console.log('');
+      retryCount++;
+      if (retryCount <= maxRetries) {
+        console.log(`  ✗ Error: ${loopErr.message} - Retrying (${retryCount}/${maxRetries})...`);
+        // Navigate back to list for retry
+        try {
+          await page.goto(listUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+          await sleep(2000);
+        } catch (e) {}
+      } else {
+        console.log(`  ✗ Error processing invoice: ${loopErr.message}`);
+        // Try to get back to list for next invoice
+        try {
+          await page.goto(listUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+          await sleep(1000);
+        } catch (e) {}
+        console.log('');
+      }
     }
+    } // End while retry loop
   }
   
   // Print summary

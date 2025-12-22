@@ -1,39 +1,129 @@
 
-# Coupa Invoice Downloader Desktop App (2025)
+# Coupa Invoice Downloader
 
-This app provides a simple, user-friendly desktop interface for downloading invoices from Coupa using your browser. **All actions are performed through the app's graphical interface—no terminal or command-line steps are required.**
-
-## How to Use
-
-1. **Download and install** the app (or unzip the folder if provided as a portable app).
-2. **Open the app** (double-click the executable or run via Electron if developing).
-3. **Follow the three-step UI:**
-   - **Step 1:** Select your browser (Edge or Chrome) and click "Start/Check Browser". The app will launch the browser with remote debugging enabled if it's not already running.
-   - **Step 2:** Enter the full Coupa URL you want to process (e.g., the invoice list page) and click "Validate URL". The app will check that the page is open in your browser.
-   - **Step 3:** Click "Download" to start the invoice download process. Progress and results will be shown in the app.
+A desktop app for batch downloading invoice attachments from Coupa. Works on Mac and Windows.
 
 ## Features
 
-- No command-line or terminal usage required
-- Supports Microsoft Edge and Google Chrome (Chromium-based browsers)
-- Automatically launches the browser with the correct settings if needed
-- Validates that the correct Coupa page is open before starting
-- Downloads all invoice PDFs as described in your Selenium-IDE JSON config
-- Progress and results are displayed in the app
-
-## Limitations & Notes
-
-- Only Chromium-based browsers (Edge, Chrome) are supported
-- The app uses the first XPath found in your Selenium JSON to identify list rows (custom XPath support may be added in the future)
-- If your site is slow, downloads may take longer; the app waits for each file to finish downloading
-- PDFs are saved to your default Downloads folder
-
-## Troubleshooting
-
-- If the browser does not launch or connect, ensure no other instance is running with remote debugging disabled
-- If downloads do not appear, check that the Coupa page is fully loaded and you are logged in
-- For any issues, please contact the maintainer with details about your browser and OS
+- 📥 Download multiple invoice attachments at once
+- 📁 Automatically organizes files into folders by invoice name
+- 🔄 Retry logic for failed downloads (up to 3 attempts)
+- 📄 Filter by file type: PDF, Excel, CSV, Word, PNG, JPG
+- 🖥️ Clean, modern interface with real-time progress
+- 🔒 Works without admin rights
 
 ---
 
-**All previous command-line instructions are now obsolete. Please use only the desktop app interface for all operations.**
+## Installation
+
+### Mac
+
+1. Download the `.dmg` file:
+   - **Apple Silicon (M1/M2/M3):** `Coupa Invoice Downloader-1.0.0-arm64.dmg`
+   - **Intel Mac:** `Coupa Invoice Downloader-1.0.0.dmg`
+2. Double-click to open the DMG
+3. Drag the app to your Applications folder
+4. Open from Applications (right-click → Open if you see a security warning)
+
+### Windows
+
+1. Download `Coupa Invoice Downloader-1.0.0-win.zip`
+2. Right-click → **Extract All** to a folder (e.g., Desktop or Documents)
+3. Open the extracted folder
+4. Double-click **`Setup - Run Me First.bat`**
+   - This hides dependency files and creates a desktop shortcut
+5. Use the **desktop shortcut** to launch the app
+
+> **Note:** Keep the extracted folder - the shortcut needs it. You can move the folder anywhere before running setup.
+
+---
+
+## Usage
+
+### Step 1: Start Your Browser
+
+The app connects to an already-running browser. Start Edge or Chrome with remote debugging:
+
+**Edge (Windows):**
+```
+"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --remote-debugging-port=9222
+```
+
+**Edge (Mac):**
+```
+/Applications/Microsoft\ Edge.app/Contents/MacOS/Microsoft\ Edge --remote-debugging-port=9222
+```
+
+**Chrome (similar):**
+```
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --remote-debugging-port=9222
+```
+
+Or use the app's **Start Browser** button to launch it automatically.
+
+### Step 2: Navigate to Coupa
+
+1. In the browser you just started, log into Coupa
+2. Navigate to the invoice list page you want to download from
+
+### Step 3: Download
+
+1. Open the **Coupa Invoice Downloader** app
+2. Select the browser (Edge or Chrome)
+3. Paste the Coupa URL and click **Validate**
+4. Check the file types you want (PDF, Excel, etc.)
+5. Click **Download**
+
+Files are saved to your Downloads folder, organized by invoice name.
+
+---
+
+## Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| "Failed to connect to browser" | Make sure the browser is running with `--remote-debugging-port=9222` |
+| First invoice fails | The app will automatically retry up to 3 times |
+| No attachments found | Check that the invoice detail page has downloadable files |
+| Windows: App won't start | Wait 30-60 seconds on first launch (extracting files) |
+| Mac: "App can't be opened" | Right-click → Open → Open |
+
+---
+
+## Development
+
+```bash
+# Clone the repo
+git clone https://github.com/stacked-house/coupahost-invoice-downloader.git
+cd coupahost-invoice-downloader/Code/Backend/electron
+
+# Install dependencies
+npm install
+
+# Run in development
+npm start
+
+# Build for Mac
+npm run build:mac
+
+# Build for Windows
+npm run build:win
+```
+
+---
+
+## Tech Stack
+
+- **Electron** - Desktop app framework
+- **Puppeteer-core** - Browser automation
+- **Node.js** - Runtime
+
+---
+
+## Author
+
+**stacked_house**
+
+## License
+
+MIT
