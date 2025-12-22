@@ -1,0 +1,270 @@
+{
+  "Name": "Download_Invoices",
+  "CreationDate": "2025-11-14",
+  "Commands": [
+    {
+      "Command": "store",
+      "Target": "true",
+      "Value": "!errorIgnore",
+      "Description": ""
+    },
+    {
+      "Command": "store",
+      "Target": "60",
+      "Value": "!timeout_wait",
+      "Description": ""
+    },
+    {
+      "Command": "store",
+      "Target": "60",
+      "Value": "!timeout_pageLoad",
+      "Description": ""
+    },
+    {
+      "Command": "selectWindow",
+      "Target": "tab=0",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "selectFrame",
+      "Target": "relative=top",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "store",
+      "Target": "${!URL}",
+      "Value": "listUrl",
+      "Description": ""
+    },
+    {
+      "Command": "storeXpathCount",
+      "Target": "xpath=(//table[contains(@class,'table')]//tbody/tr[.//td[1]//a]//td[1]//a)",
+      "Value": "invoiceLinkCount",
+      "Description": ""
+    },
+    {
+      "Command": "if_v2",
+      "Target": "${invoiceLinkCount} == 0",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "throwError",
+      "Target": "No invoice link found on this page.",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "endif",
+      "Target": "",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "store",
+      "Target": "1",
+      "Value": "i",
+      "Description": ""
+    },
+    {
+      "Command": "while_v2",
+      "Target": "${i} <= ${invoiceLinkCount}",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "storeText",
+      "Target": "xpath=(//table[contains(@class,'table')]//tbody/tr[.//td[1]//a]//td[1]//a)[${i}]",
+      "Value": "currLinkText",
+      "Description": ""
+    },
+    {
+      "Command": "echo",
+      "Target": "Clicking row ${i}/${invoiceLinkCount}: ${currLinkText}",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "waitForElementPresent",
+      "Target": "xpath=(//table[contains(@class,'table')]//tbody/tr[.//td[1]//a]//td[1]//a)[${i}]",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "click",
+      "Target": "xpath=(//table[contains(@class,'table')]//tbody/tr[.//td[1]//a]//td[1]//a)[${i}]",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "pause",
+      "Target": "1500",
+      "Value": "",
+      "Description": "Wait for page to fully load after navigation"
+    },
+    {
+      "Command": "selectFrame",
+      "Target": "relative=top",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "store",
+      "Target": "${!URL}",
+      "Value": "detailUrl",
+      "Description": "Store the detail page URL to return to after each download"
+    },
+    {
+      "Command": "comment",
+      "Target": "Count ALL PDF links on the detail page",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "store",
+      "Target": "xpath=(//a[contains(@href,'.pdf')])",
+      "Value": "allPdfXpath",
+      "Description": ""
+    },
+    {
+      "Command": "storeXpathCount",
+      "Target": "${allPdfXpath}",
+      "Value": "pdfCount",
+      "Description": ""
+    },
+    {
+      "Command": "echo",
+      "Target": "Found ${pdfCount} PDF attachment(s) on this invoice",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "if_v2",
+      "Target": "${pdfCount} > 0",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "store",
+      "Target": "1",
+      "Value": "j",
+      "Description": ""
+    },
+    {
+      "Command": "while_v2",
+      "Target": "${j} <= ${pdfCount}",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "echo",
+      "Target": "Downloading PDF ${j}/${pdfCount}",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "waitForElementPresent",
+      "Target": "xpath=(//a[contains(@href,'.pdf')])[${j}]",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "click",
+      "Target": "xpath=(//a[contains(@href,'.pdf')])[${j}]",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "pause",
+      "Target": "1500",
+      "Value": "",
+      "Description": "Wait for download to complete"
+    },
+    {
+      "Command": "comment",
+      "Target": "Navigate back to detail page for next attachment",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "open",
+      "Target": "${detailUrl}",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "pause",
+      "Target": "800",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "executeScript_Sandbox",
+      "Target": "return (Number(${j}) + 1);",
+      "Value": "j",
+      "Description": ""
+    },
+    {
+      "Command": "endWhile",
+      "Target": "",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "endif",
+      "Target": "",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "comment",
+      "Target": "Go back to the invoice list",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "open",
+      "Target": "${listUrl}",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "waitForElementPresent",
+      "Target": "xpath=(//table[contains(@class,'table')]//tbody/tr[.//td[1]//a]//td[1]//a)[1]",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "pause",
+      "Target": "300",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "executeScript_Sandbox",
+      "Target": "return (Number(${i}) + 1);",
+      "Value": "i",
+      "Description": ""
+    },
+    {
+      "Command": "echo",
+      "Target": "Next index -> ${i}",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "endWhile",
+      "Target": "",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "echo",
+      "Target": "Done. Attempted ${invoiceLinkCount} invoice(s).",
+      "Value": "",
+      "Description": ""
+    }
+  ]
+}

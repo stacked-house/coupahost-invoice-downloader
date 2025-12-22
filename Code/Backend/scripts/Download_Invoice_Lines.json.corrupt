@@ -1,0 +1,203 @@
+{
+  "Name": "Download_Invoice Lines",
+  "CreationDate": "2025-11-14",
+  "Commands": [
+    {
+      "Command": "store",
+
+      "Description": ""
+    },
+    {
+      "Command": "throwError",
+      "Target": "No Invoice # links found. Check that the header is labeled 'Invoice', 'Invoice #', 'Invoice No.' or 'Invoice Number'.",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "endif",
+      "Target": "",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "store",
+      "Target": "1",
+      "Value": "i",
+      "Description": ""
+    },
+    {
+      "Command": "while_v2",
+      "Target": "${i} <= ${invoiceLinkCount}",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "storeText",
+      "Target": "${rowLinkXPathBase}[${i}]",
+      "Value": "currLinkText",
+      "Description": ""
+    },
+    {
+      "Command": "echo",
+      "Target": "Clicking Invoice # ${i}/${invoiceLinkCount}: ${currLinkText}",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "waitForElementPresent",
+      "Target": "${rowLinkXPathBase}[${i}]",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "click",
+      "Target": "${rowLinkXPathBase}[${i}]",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "pause",
+      "Target": "600",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "selectFrame",
+      "Target": "relative=top",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "store",
+      "Target": "${!URL}",
+      "Value": "detailUrl",
+      "Description": ""
+    },
+    {
+      "Command": "store",
+      "Target": "xpath=((//*[self::label or self::dt or self::th or self::span or self::div][contains(translate(normalize-space(.),'abcdefghijklmnopqrstuvwxyz','ABCDEFGHIJKLMNOPQRSTUVWXYZ'),'ATTACHMENT')])[1]/ancestor-or-self::*[self::tr or self::li or self::section or self::div][1]//a[contains(translate(@href,'PDF','pdf'),'.pdf')])",
+      "Value": "attachmentListXPath",
+      "Description": ""
+    },
+    {
+      "Command": "storeXpathCount",
+      "Target": "${attachmentListXPath}",
+      "Value": "attachCount",
+      "Description": ""
+    },
+    {
+      "Command": "if_v2",
+      "Target": "${attachCount} > 0",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "store",
+      "Target": "1",
+      "Value": "j",
+      "Description": ""
+    },
+    {
+      "Command": "while_v2",
+      "Target": "${j} <= ${attachCount}",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "waitForElementPresent",
+      "Target": "${attachmentListXPath}[${j}]",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "echo",
+      "Target": "Clicking attachment ${j}/${attachCount}",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "click",
+      "Target": "${attachmentListXPath}[${j}]",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "pause",
+      "Target": "900",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "open",
+      "Target": "${detailUrl}",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "pause",
+      "Target": "350",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "executeScript_Sandbox",
+      "Target": "return (Number(${j}) + 1);",
+      "Value": "j",
+      "Description": ""
+    },
+    {
+      "Command": "endWhile",
+      "Target": "",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "endif",
+      "Target": "",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "open",
+      "Target": "${listUrl}",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "waitForElementPresent",
+      "Target": "${rowLinkXPathBase}[1]",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "pause",
+      "Target": "300",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "executeScript_Sandbox",
+      "Target": "return (Number(${i}) + 1);",
+      "Value": "i",
+      "Description": ""
+    },
+    {
+      "Command": "echo",
+      "Target": "Next index -> ${i}",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "endWhile",
+      "Target": "",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "echo",
+      "Target": "Done. Attempted ${invoiceLinkCount} Invoice # link(s).",
+      "Value": "",
+      "Description": ""
+    }
+  ]
+}

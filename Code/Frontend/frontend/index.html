@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coupa Invoice Downloader</title>
+  <style>
+    body { font-family: sans-serif; margin: 2em; }
+    button { font-size: 1.2em; padding: 0.5em 1em; }
+    #output { margin-top: 1em; white-space: pre-wrap; background: #f4f4f4; padding: 1em; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <h1>Coupa Invoice Downloader</h1>
+  <ol>
+    <li>
+      <b>Step 1: Select and Start Browser</b><br>
+      <select id="browser">
+        <option value="edge">Edge</option>
+        <option value="chrome">Chrome</option>
+      </select>
+      <button id="start-browser">Start/Check Browser</button>
+      <span id="browser-status"></span>
+    </li>
+    <li style="margin-top:1em;">
+      <b>Step 2: Enter Coupa URL</b><br>
+      <input id="url" type="text" placeholder="https://..." style="width:350px;" />
+      <button id="validate-url">Validate URL</button>
+      <span id="url-status"></span>
+    </li>
+    <li style="margin-top:1em;">
+      <b>Step 3: Download Type</b><br>
+      <select id="download-type">
+        <option value="Download_Invoices.json">Invoices</option>
+        <option value="Download_Invoice_Lines.json">Invoice Lines</option>
+      </select>
+      <button id="download-btn" disabled>Download</button>
+    </li>
+  </ol>
+  <div id="output"></div>
+  <script src="renderer.js"></script>
+</body>
+</html>
