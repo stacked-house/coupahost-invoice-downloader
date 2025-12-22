@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * Coupa Invoice Downloader - JSON Command Executor
- * Interprets the JSON command files and executes them using Puppeteer
+ * Coupa Invoice Downloader
+ * Downloads invoice PDFs from Coupa using Puppeteer
+ * Clean, user-friendly console output
  */
 
 const puppeteer = require('puppeteer-core');
@@ -36,82 +37,8 @@ if (!jsonPath) {
 // Download directory
 const downloadDir = path.join(os.homedir(), 'Downloads');
 
-// Variable storage (like UI.Vision variables)
-const variables = {
-  '!errorIgnore': 'true',
-  '!timeout_wait': '60',
-  '!timeout_pageLoad': '60',
-  '!URL': '' // Will be set to current page URL
-};
-
-/**
- * Substitute variables in a string: ${varName} -> value
- */
-function substituteVars(str) {
-  if (typeof str !== 'string') return str;
-  return str.replace(/\$\{([^}]+)\}/g, (match, varName) => {
-    // Handle special ! prefix variables
-    const key = varName.startsWith('!') ? varName : varName;
-    if (variables.hasOwnProperty(key)) {
-      return variables[key];
-    }
-    return match; // Leave unchanged if not found
-  });
-}
-
-/**
- * Extract XPath from target string (handles xpath= prefix)
- */
-function extractXPath(target) {
-  // First substitute variables
-  let resolved = substituteVars(target);
-  // Remove xpath= prefix if present
-  if (resolved.startsWith('xpath=')) {
-    resolved = resolved.substring(6);
-  }
-  return resolved;
-}
-
-/**
- * Evaluate a condition expression
- */
-function evaluateCondition(expr) {
-  // Substitute variables first
-  const resolved = substituteVars(expr);
-  
-  try {
-    // Handle common operators
-    if (resolved.includes('==')) {
-      const [left, right] = resolved.split('==').map(s => s.trim());
-      return left === right || Number(left) === Number(right);
-    }
-    if (resolved.includes('!=')) {
-      const [left, right] = resolved.split('!=').map(s => s.trim());
-      return left !== right && Number(left) !== Number(right);
-    }
-    if (resolved.includes('<=')) {
-      const [left, right] = resolved.split('<=').map(s => s.trim());
-      return Number(left) <= Number(right);
-    }
-    if (resolved.includes('>=')) {
-      const [left, right] = resolved.split('>=').map(s => s.trim());
-      return Number(left) >= Number(right);
-    }
-    if (resolved.includes('<')) {
-      const [left, right] = resolved.split('<').map(s => s.trim());
-      return Number(left) < Number(right);
-    }
-    if (resolved.includes('>')) {
-      const [left, right] = resolved.split('>').map(s => s.trim());
-      return Number(left) > Number(right);
-    }
-    // Fallback: try JavaScript evaluation (careful!)
-    return Boolean(eval(resolved));
-  } catch (e) {
-    console.error('Failed to evaluate condition:', expr, e);
-    return false;
-  }
-}
+// Track downloaded files
+const downloadedFiles = [];
 
 /**
  * Get current download directory snapshot
@@ -125,9 +52,7 @@ function getDownloadSnapshot() {
       try {
         const stat = fs.statSync(fullPath);
         result[file] = stat.mtimeMs;
-      } catch (e) {
-        // Ignore files we can't stat
-      }
+      } catch (e) {}
     }
     return result;
   } catch (e) {
@@ -146,399 +71,290 @@ async function waitForNewDownload(beforeSnapshot, timeoutMs = 30000) {
     
     const currentFiles = getDownloadSnapshot();
     
-    // Look for new files or modified files
     for (const [file, mtime] of Object.entries(currentFiles)) {
       // Skip temp download files
       if (file.endsWith('.crdownload') || file.endsWith('.tmp') || file.endsWith('.download')) {
         continue;
       }
       
-      // New file appeared
-      if (!beforeSnapshot[file]) {
-        console.log(`  Download completed: ${file}`);
-        return file;
-      }
-      
-      // Existing file was modified (re-downloaded)
-      if (mtime > beforeSnapshot[file]) {
-        console.log(`  Download updated: ${file}`);
+      // New file or modified file
+      if (!beforeSnapshot[file] || mtime > beforeSnapshot[file]) {
+        // Wait a moment to ensure file is complete
+        await new Promise(resolve => setTimeout(resolve, 500));
         return file;
       }
     }
   }
   
-  console.log('  Download timeout - no new file detected');
   return null;
+}
+
+/**
+ * Sleep helper
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**
  * Main execution
  */
 async function main() {
-  // Load JSON commands
-  const jsonContent = fs.readFileSync(jsonPath, 'utf-8');
-  const config = JSON.parse(jsonContent);
-  const commands = config.Commands || [];
+  console.log('Connecting to browser...');
   
-  console.log(`Loaded ${commands.length} commands from ${config.Name || jsonPath}`);
-  
-  // Connect to browser
-  console.log(`Connecting to browser at ${browserUrl}...`);
-  const browser = await puppeteer.connect({
-    browserURL: browserUrl,
-    defaultViewport: null
-  });
+  let browser;
+  try {
+    browser = await puppeteer.connect({
+      browserURL: browserUrl,
+      defaultViewport: null
+    });
+  } catch (err) {
+    console.log('✗ Failed to connect to browser');
+    console.log('  Make sure Edge is running with remote debugging enabled');
+    process.exit(1);
+  }
   
   // Find the target tab
   const pages = await browser.pages();
   let page = null;
   
-  if (targetUrl) {
-    for (const p of pages) {
-      const url = await p.url();
-      if (url.startsWith(targetUrl) || url.includes(targetUrl)) {
-        page = p;
-        console.log(`Found target tab: ${url}`);
-        break;
-      }
+  for (const p of pages) {
+    const url = await p.url();
+    if (targetUrl && (url.startsWith(targetUrl) || url.includes(targetUrl))) {
+      page = p;
+      break;
     }
-  }
-  
-  if (!page && pages.length > 0) {
-    // Use the first non-blank page
-    for (const p of pages) {
-      const url = await p.url();
-      if (url && url !== 'about:blank' && !url.startsWith('chrome://')) {
-        page = p;
-        console.log(`Using tab: ${url}`);
-        break;
-      }
+    if (!page && url && url !== 'about:blank' && !url.startsWith('chrome://') && !url.startsWith('edge://')) {
+      page = p;
     }
   }
   
   if (!page) {
-    console.error('No suitable tab found. Please open the Coupa page first.');
+    console.log('✗ No suitable browser tab found');
+    console.log('  Please open the Coupa invoice list page first');
     await browser.disconnect();
     process.exit(1);
   }
   
-  // Set the !URL variable to current page URL
-  variables['!URL'] = await page.url();
+  console.log('Connected! Starting download process...');
+  console.log('');
   
-  // Control flow stacks
-  const ifStack = [];      // Stack of { skip: boolean, executed: boolean }
-  const whileStack = [];   // Stack of { startIndex: number, condition: string }
+  // Store the list URL to return to
+  const listUrl = await page.url();
   
-  let i = 0;
-  while (i < commands.length) {
-    const cmd = commands[i];
-    const command = cmd.Command.toLowerCase();
-    const target = cmd.Target || '';
-    const value = cmd.Value || '';
-    
-    // Check if we're skipping due to if/else
-    const shouldSkip = ifStack.length > 0 && ifStack[ifStack.length - 1].skip;
-    
-    // Always process control flow commands
-    if (command === 'if_v2' || command === 'if') {
-      if (shouldSkip) {
-        // Already skipping, push another skip
-        ifStack.push({ skip: true, executed: true });
-      } else {
-        const condition = evaluateCondition(target);
-        ifStack.push({ skip: !condition, executed: condition });
+  // Find all invoice links on the page
+  // Looking for invoice links in a table - first column links
+  const invoiceRowXpath = `.//table[contains(@class,'table')]//tbody/tr[.//td[1]//a]`;
+  let invoiceRows = await page.$$(`xpath/${invoiceRowXpath}`);
+  let invoiceCount = invoiceRows.length;
+  
+  // If no results with table class, try a more generic approach
+  if (invoiceCount === 0) {
+    const altXpath = `.//table//tbody//tr[.//td//a]`;
+    invoiceRows = await page.$$(`xpath/${altXpath}`);
+    invoiceCount = invoiceRows.length;
+  }
+  
+  if (invoiceCount === 0) {
+    console.log('✗ No invoices found on this page');
+    console.log('  Make sure you are on an invoice list page');
+    await browser.disconnect();
+    process.exit(1);
+  }
+  
+  console.log(`Found ${invoiceCount} invoice(s) to process`);
+  console.log('');
+  
+  let totalDownloads = 0;
+  let processedInvoices = 0;
+  
+  // Process each invoice
+  for (let i = 1; i <= invoiceCount; i++) {
+    try {
+      // Re-navigate to list if not there
+      const currentUrl = await page.url();
+      if (currentUrl !== listUrl) {
+        await page.goto(listUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        await sleep(1500);
       }
-      i++;
-      continue;
-    }
-    
-    if (command === 'else') {
-      if (ifStack.length > 0) {
-        const current = ifStack[ifStack.length - 1];
-        // Only execute else if we haven't executed the if block
-        current.skip = current.executed;
+      
+      // Wait for the table to load
+      try {
+        await page.waitForSelector(`xpath/.//table//tbody//tr//td//a`, { timeout: 15000 });
+      } catch (e) {
+        console.log(`  ✗ Page did not load correctly, retrying...`);
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await sleep(2000);
       }
-      i++;
-      continue;
-    }
-    
-    if (command === 'endif') {
-      if (ifStack.length > 0) {
-        ifStack.pop();
-      }
-      i++;
-      continue;
-    }
-    
-    if (command === 'while_v2' || command === 'while') {
-      if (shouldSkip) {
-        // Skip the entire while block
-        let depth = 1;
-        let j = i + 1;
-        while (j < commands.length && depth > 0) {
-          const c = commands[j].Command.toLowerCase();
-          if (c === 'while_v2' || c === 'while') depth++;
-          if (c === 'endwhile') depth--;
-          j++;
-        }
-        i = j;
+      
+      // Get the invoice link (nth link in first column)
+      const linkXpath = `(.//table//tbody//tr//td[1]//a)[${i}]`;
+      const linkElements = await page.$$(`xpath/${linkXpath}`);
+      
+      if (linkElements.length === 0) {
+        console.log(`Skipping row ${i} - link not found`);
         continue;
       }
       
-      const condition = evaluateCondition(target);
-      if (condition) {
-        whileStack.push({ startIndex: i, condition: target });
-        i++;
-      } else {
-        // Skip to endWhile
-        let depth = 1;
-        let j = i + 1;
-        while (j < commands.length && depth > 0) {
-          const c = commands[j].Command.toLowerCase();
-          if (c === 'while_v2' || c === 'while') depth++;
-          if (c === 'endwhile') depth--;
-          j++;
-        }
-        i = j;
+      // Get the invoice name/number and href BEFORE clicking (to avoid context issues)
+      let linkText = 'Unknown';
+      let linkHref = '';
+      try {
+        const linkInfo = await page.evaluate(el => ({
+          text: el.textContent?.trim() || 'Unknown',
+          href: el.href || ''
+        }), linkElements[0]);
+        linkText = linkInfo.text;
+        linkHref = linkInfo.href;
+      } catch (e) {
+        // If we can't get info, try to continue anyway
       }
-      continue;
-    }
-    
-    if (command === 'endwhile') {
-      if (whileStack.length > 0) {
-        const loop = whileStack[whileStack.length - 1];
-        const condition = evaluateCondition(loop.condition);
-        if (condition) {
-          // Go back to start of while
-          i = loop.startIndex + 1;
+      
+      console.log(`Opening invoice ${i}/${invoiceCount}: ${linkText}`);
+      
+      // Click the invoice link and wait for navigation
+      try {
+        // Use Promise.all to handle click + navigation together
+        await Promise.all([
+          page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {}),
+          linkElements[0].click()
+        ]);
+        await sleep(1500);
+      } catch (e) {
+        // If click fails, try navigating directly to href
+        if (linkHref) {
+          try {
+            await page.goto(linkHref, { waitUntil: 'domcontentloaded', timeout: 30000 });
+            await sleep(1500);
+          } catch (navErr) {
+            console.log(`  ✗ Failed to open invoice`);
+            continue;
+          }
         } else {
-          // Exit the loop
-          whileStack.pop();
-          i++;
+          console.log(`  ✗ Failed to click invoice link`);
+          continue;
         }
-      } else {
-        i++;
       }
-      continue;
+      
+      // Store the detail page URL
+      const detailUrl = await page.url();
+    
+    // Find all PDF links on the detail page
+    const pdfXpath = `.//a[contains(@href,'.pdf')]`;
+    let pdfLinks = await page.$$(`xpath/${pdfXpath}`);
+    let pdfCount = pdfLinks.length;
+    
+    // If no direct PDF links, try looking for attachment links
+    if (pdfCount === 0) {
+      const attachXpath = `.//a[contains(@class,'attachment') or contains(text(),'Download') or contains(text(),'PDF')]`;
+      pdfLinks = await page.$$(`xpath/${attachXpath}`);
+      pdfCount = pdfLinks.length;
     }
     
-    // Skip non-control-flow commands if in a skipped block
-    if (shouldSkip) {
-      i++;
-      continue;
+    if (pdfCount === 0) {
+      console.log(`  No attachments found`);
+    } else {
+      console.log(`  Found ${pdfCount} attachment(s)`);
+      
+      // Download each PDF
+      for (let j = 1; j <= pdfCount; j++) {
+        const beforeSnapshot = getDownloadSnapshot();
+        
+        // Re-query PDF links (in case page state changed)
+        const currentPdfXpath = `(${pdfXpath})[${j}]`;
+        const currentPdfLinks = await page.$$(`xpath/${currentPdfXpath}`);
+        
+        if (currentPdfLinks.length === 0) {
+          console.log(`  Downloading ${j}/${pdfCount}... ✗ Link not found`);
+          continue;
+        }
+        
+        process.stdout.write(`  Downloading ${j}/${pdfCount}... `);
+        
+        try {
+          await currentPdfLinks[0].click();
+          await sleep(1500);
+        } catch (e) {
+          console.log(`✗ Click failed`);
+          continue;
+        }
+        
+        // Wait for download
+        const downloadedFile = await waitForNewDownload(beforeSnapshot, 30000);
+        
+        if (downloadedFile) {
+          console.log(`✓ ${downloadedFile}`);
+          downloadedFiles.push(downloadedFile);
+          totalDownloads++;
+        } else {
+          console.log(`✗ Download timeout`);
+        }
+        
+        // Navigate back to detail page if there are more PDFs and we left
+        const afterUrl = await page.url();
+        if (j < pdfCount && afterUrl !== detailUrl) {
+          await page.goto(detailUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+          await sleep(800);
+        }
+      }
     }
     
-    // Execute the command
+    processedInvoices++;
+    
+    // Navigate back to the invoice list for the next iteration
     try {
-      await executeCommand(page, command, target, value);
-    } catch (err) {
-      console.error(`Error executing ${command}: ${err.message}`);
-      if (variables['!errorIgnore'] !== 'true') {
-        throw err;
-      }
+      await page.goto(listUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      await sleep(500);
+    } catch (e) {
+      // Will retry at start of next loop
     }
     
-    i++;
+    console.log(''); // Empty line between invoices
+    
+    } catch (loopErr) {
+      console.log(`  ✗ Error processing invoice: ${loopErr.message}`);
+      // Try to get back to list for next invoice
+      try {
+        await page.goto(listUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        await sleep(1000);
+      } catch (e) {}
+      console.log('');
+    }
   }
   
-  console.log('\nExecution complete!');
+  // Print summary
+  console.log('========================================');
+  console.log('Download Complete!');
+  console.log(`Processed ${processedInvoices} invoice(s)`);
+  console.log(`Downloaded ${totalDownloads} file(s)`);
+  
+  if (downloadedFiles.length > 0) {
+    console.log('');
+    console.log('Files:');
+    if (downloadedFiles.length <= 10) {
+      downloadedFiles.forEach((file, idx) => {
+        console.log(`  ${idx + 1}. ${file}`);
+      });
+    } else {
+      // Show first 5 and last 3
+      for (let i = 0; i < 5; i++) {
+        console.log(`  ${i + 1}. ${downloadedFiles[i]}`);
+      }
+      console.log(`  ... and ${downloadedFiles.length - 8} more ...`);
+      for (let i = downloadedFiles.length - 3; i < downloadedFiles.length; i++) {
+        console.log(`  ${i + 1}. ${downloadedFiles[i]}`);
+      }
+    }
+  }
+  
+  console.log('========================================');
+  
   await browser.disconnect();
-}
-
-/**
- * Execute a single command
- */
-async function executeCommand(page, command, target, value) {
-  const resolvedTarget = substituteVars(target);
-  const resolvedValue = substituteVars(value);
-  
-  switch (command) {
-    case 'store': {
-      // Store a value in a variable
-      // Target = value to store, Value = variable name
-      let valToStore = resolvedTarget;
-      
-      // Handle special ${!URL} case
-      if (target === '${!URL}') {
-        valToStore = await page.url();
-      }
-      
-      variables[resolvedValue] = valToStore;
-      console.log(`store: ${resolvedValue} = "${valToStore}"`);
-      break;
-    }
-    
-    case 'echo': {
-      console.log(`echo: ${resolvedTarget}`);
-      break;
-    }
-    
-    case 'pause': {
-      const ms = parseInt(resolvedTarget) || 1000;
-      console.log(`pause: ${ms}ms`);
-      await new Promise(resolve => setTimeout(resolve, ms));
-      break;
-    }
-    
-    case 'open': {
-      console.log(`open: ${resolvedTarget}`);
-      await page.goto(resolvedTarget, { waitUntil: 'domcontentloaded', timeout: 60000 });
-      // Update !URL
-      variables['!URL'] = await page.url();
-      break;
-    }
-    
-    case 'selectwindow': {
-      // Usually tab=0, just ensure we're on the right page
-      console.log(`selectWindow: ${resolvedTarget}`);
-      break;
-    }
-    
-    case 'selectframe': {
-      // Handle frame selection
-      if (target === 'relative=top') {
-        // We're already at top level with page
-        console.log('selectFrame: relative=top');
-      }
-      break;
-    }
-    
-    case 'storexpathcount': {
-      const xpath = extractXPath(target);
-      console.log(`storeXpathCount: ${xpath} -> ${resolvedValue}`);
-      try {
-        const elements = await page.$$(`::-p-xpath(${xpath})`);
-        variables[resolvedValue] = String(elements.length);
-        console.log(`  Found ${elements.length} elements`);
-      } catch (e) {
-        console.error(`  XPath error: ${e.message}`);
-        variables[resolvedValue] = '0';
-      }
-      break;
-    }
-    
-    case 'storetext': {
-      const xpath = extractXPath(target);
-      console.log(`storeText: ${xpath} -> ${resolvedValue}`);
-      try {
-        const elements = await page.$$(`::-p-xpath(${xpath})`);
-        if (elements.length > 0) {
-          const text = await page.evaluate(el => el.textContent || '', elements[0]);
-          variables[resolvedValue] = text.trim();
-          console.log(`  Text: "${text.trim()}"`);
-        } else {
-          variables[resolvedValue] = '';
-        }
-      } catch (e) {
-        console.error(`  Error: ${e.message}`);
-        variables[resolvedValue] = '';
-      }
-      break;
-    }
-    
-    case 'waitforelementpresent': {
-      const xpath = extractXPath(target);
-      const timeout = parseInt(variables['!timeout_wait']) * 1000 || 60000;
-      console.log(`waitForElementPresent: ${xpath}`);
-      try {
-        await page.waitForSelector(`::-p-xpath(${xpath})`, { timeout });
-        console.log('  Element found');
-      } catch (e) {
-        console.error(`  Timeout waiting for element`);
-      }
-      break;
-    }
-    
-    case 'click': {
-      const xpath = extractXPath(target);
-      console.log(`click: ${xpath}`);
-      
-      // Take download snapshot before click (in case it triggers a download)
-      const beforeSnapshot = getDownloadSnapshot();
-      
-      try {
-        const elements = await page.$$(`::-p-xpath(${xpath})`);
-        if (elements.length > 0) {
-          // Check if this is a download link
-          const href = await page.evaluate(el => el.href || '', elements[0]);
-          const isDownloadLink = href && (href.includes('.pdf') || href.includes('.xlsx') || href.includes('.csv'));
-          
-          await elements[0].click();
-          console.log('  Clicked');
-          
-          // If it's a download link, wait for download
-          if (isDownloadLink) {
-            console.log('  Waiting for download...');
-            await waitForNewDownload(beforeSnapshot, 30000);
-          } else {
-            // Wait a bit for navigation/page updates
-            await new Promise(resolve => setTimeout(resolve, 500));
-          }
-          
-          // Update !URL after navigation
-          try {
-            variables['!URL'] = await page.url();
-          } catch (e) {
-            // Page might have navigated, that's ok
-          }
-        } else {
-          console.log('  No elements found to click');
-        }
-      } catch (e) {
-        if (e.message.includes('Execution context was destroyed')) {
-          console.log('  Page navigated, continuing...');
-          // Wait for new page to load
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          try {
-            variables['!URL'] = await page.url();
-          } catch (e2) {
-            // Ignore
-          }
-        } else {
-          console.error(`  Error: ${e.message}`);
-        }
-      }
-      break;
-    }
-    
-    case 'throwerror': {
-      console.error(`throwError: ${resolvedTarget}`);
-      if (variables['!errorIgnore'] !== 'true') {
-        throw new Error(resolvedTarget);
-      }
-      break;
-    }
-    
-    case 'executescript_sandbox': {
-      // Execute JavaScript and store result
-      console.log(`executeScript_Sandbox: ${target} -> ${resolvedValue}`);
-      try {
-        // Create a simple expression evaluator
-        const expr = target.replace(/return\s+/, '');
-        // Substitute variables
-        let evalExpr = expr;
-        for (const [key, val] of Object.entries(variables)) {
-          const regex = new RegExp(`\\$\\{${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}`, 'g');
-          evalExpr = evalExpr.replace(regex, val);
-        }
-        // Evaluate
-        const result = eval(evalExpr);
-        variables[resolvedValue] = String(result);
-        console.log(`  Result: ${result}`);
-      } catch (e) {
-        console.error(`  Error: ${e.message}`);
-      }
-      break;
-    }
-    
-    default: {
-      console.log(`[Unhandled command: ${command}] target=${target}, value=${value}`);
-    }
-  }
 }
 
 // Run
 main().catch(err => {
-  console.error('Fatal error:', err);
+  console.error('');
+  console.error('✗ Error:', err.message);
   process.exit(1);
 });

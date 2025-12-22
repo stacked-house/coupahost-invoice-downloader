@@ -4,40 +4,125 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Coupa Invoice Downloader</title>
-  <style>
-    body { font-family: sans-serif; margin: 2em; }
-    button { font-size: 1.2em; padding: 0.5em 1em; }
-    #output { margin-top: 1em; white-space: pre-wrap; background: #f4f4f4; padding: 1em; border-radius: 5px; }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Coupa Invoice Downloader</h1>
-  <ol>
-    <li>
-      <b>Step 1: Select and Start Browser</b><br>
-      <select id="browser">
-        <option value="edge">Edge</option>
-        <option value="chrome">Chrome</option>
-      </select>
-      <button id="start-browser">Start/Check Browser</button>
-      <span id="browser-status"></span>
-    </li>
-    <li style="margin-top:1em;">
-      <b>Step 2: Enter Coupa URL</b><br>
-      <input id="url" type="text" placeholder="https://..." style="width:350px;" />
-      <button id="validate-url">Validate URL</button>
-      <span id="url-status"></span>
-    </li>
-    <li style="margin-top:1em;">
-      <b>Step 3: Download Type</b><br>
-      <select id="download-type">
-        <option value="Download_Invoices.json">Invoices</option>
-        <option value="Download_Invoice_Lines.json">Invoice Lines</option>
-      </select>
-      <button id="download-btn" disabled>Download</button>
-    </li>
-  </ol>
-  <div id="output"></div>
+  <div class="container">
+    <div class="header">
+      <div class="logo">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+          <polyline points="10 9 9 9 8 9"></polyline>
+        </svg>
+      </div>
+      <h1>Coupa Invoice Downloader</h1>
+      <p class="subtitle">Automate your invoice downloads with ease</p>
+    </div>
+
+    <div class="steps">
+      <!-- Step 1: Browser -->
+      <div class="step-card">
+        <div class="step-header">
+          <span class="step-number">1</span>
+          <span class="step-title">Connect Browser</span>
+          <span id="browser-status" class="status-badge"></span>
+        </div>
+        <div class="step-content">
+          <div class="input-group">
+            <select id="browser">
+              <option value="edge">Microsoft Edge</option>
+              <option value="chrome">Google Chrome</option>
+            </select>
+            <button id="start-browser" class="btn btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              Check Browser
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: URL -->
+      <div class="step-card">
+        <div class="step-header">
+          <span class="step-number">2</span>
+          <span class="step-title">Enter Coupa URL</span>
+          <span id="url-status" class="status-badge"></span>
+        </div>
+        <div class="step-content">
+          <div class="input-group url-group">
+            <input id="url" type="text" placeholder="https://your-company.coupahost.com/invoices" />
+            <button id="validate-url" class="btn btn-secondary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              Validate
+            </button>
+          </div>
+          <p class="hint">Enter the URL of the Coupa page open in your browser</p>
+        </div>
+      </div>
+
+      <!-- Step 3: Download -->
+      <div class="step-card">
+        <div class="step-header">
+          <span class="step-number">3</span>
+          <span class="step-title">Download Invoices</span>
+        </div>
+        <div class="step-content">
+          <div class="input-group">
+            <select id="download-type">
+              <option value="Download_Invoices.json">Invoices</option>
+              <option value="Download_Invoice_Lines.json">Invoice Lines</option>
+            </select>
+          </div>
+          <div class="action-buttons">
+            <button id="download-btn" class="btn btn-success btn-large" disabled>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              Start Download
+            </button>
+            <button id="stop-btn" class="btn btn-danger" disabled>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="6" y="6" width="12" height="12" rx="2"></rect>
+              </svg>
+              Stop
+            </button>
+            <button id="refresh-btn" class="btn btn-icon" title="Refresh">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Output Console -->
+    <div class="output-section">
+      <div class="output-header">
+        <span>Console Output</span>
+        <button id="clear-output" class="btn-clear" title="Clear console">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </button>
+      </div>
+      <div id="output">Ready to download invoices...</div>
+    </div>
+  </div>
+
   <script src="renderer.js"></script>
 </body>
 </html>
