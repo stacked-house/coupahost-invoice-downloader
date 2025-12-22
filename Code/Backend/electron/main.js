@@ -3,6 +3,7 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 let mainWindow;
+let currentDownloadProcess = null;
 
 // Ensure fetch is available in Node (Node 18+ has global fetch, otherwise use node-fetch)
 if (typeof fetch === 'undefined') {
@@ -11,8 +12,8 @@ if (typeof fetch === 'undefined') {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 900,
-    height: 700,
+    width: 600,
+    height: 800,
     webPreferences: {
       preload: path.join(__dirname, '../../Frontend/frontend/preload.js'),
       nodeIntegration: false,
@@ -101,13 +102,47 @@ ipcMain.handle('start-download', async (event, url, script, configFile) => {
   const scriptPath = path.join(scriptsDir, script);
   const jsonPath = path.join(scriptsDir, configFile || 'Download_Invoices.json');
   const node = '/opt/homebrew/bin/node';
+  
   return new Promise((resolve) => {
     const proc = spawn(node, [scriptPath, '--json', jsonPath, '--browserUrl', 'http://127.0.0.1:9222', '--target-url', url], { stdio: 'pipe' });
+    currentDownloadProcess = proc;
+    
     let output = '';
-    proc.stdout.on('data', (data) => { output += data.toString(); });
-    proc.stderr.on('data', (data) => { output += data.toString(); });
+    
+    // Stream stdout to renderer in real-time
+    proc.stdout.on('data', (data) => {
+      const text = data.toString();
+      output += text;
+      // Send to renderer for real-time display
+      if (mainWindow && mainWindow.webContents) {
+        mainWindow.webContents.send('download-output', text);
+      }
+    });
+    
+    proc.stderr.on('data', (data) => {
+      const text = data.toString();
+      output += text;
+      if (mainWindow && mainWindow.webContents) {
+        mainWindow.webContents.send('download-output', text);
+      }
+    });
+    
     proc.on('close', (code) => {
+      currentDownloadProcess = null;
       resolve({ success: code === 0, output });
     });
   });
+});
+
+ipcMain.handle('stop-download', async () => {
+  if (currentDownloadProcess) {
+    try {
+      currentDownloadProcess.kill('SIGTERM');
+      currentDownloadProcess = null;
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }
+  return { success: false, error: 'No download in progress' };
 });
