@@ -15,6 +15,7 @@ const args = process.argv.slice(2);
 let jsonPath = '';
 let browserUrl = 'http://127.0.0.1:9222';
 let targetUrl = '';
+let fileTypes = ['pdf']; // Default to PDF only
 
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--json' && args[i + 1]) {
@@ -26,12 +27,36 @@ for (let i = 0; i < args.length; i++) {
   } else if (args[i] === '--target-url' && args[i + 1]) {
     targetUrl = args[i + 1];
     i++;
+  } else if (args[i] === '--file-types' && args[i + 1]) {
+    fileTypes = args[i + 1].split(',').map(t => t.trim().toLowerCase());
+    i++;
   }
 }
 
 if (!jsonPath) {
-  console.error('Usage: node run_downloads_edge.js --json <path> --browserUrl <url> --target-url <url>');
+  console.error('Usage: node run_downloads_edge.js --json <path> --browserUrl <url> --target-url <url> --file-types <types>');
   process.exit(1);
+}
+
+/**
+ * Build XPath for finding links with selected file types
+ */
+function buildFileTypeXpath(types) {
+  // Build an XPath that matches any of the selected file extensions
+  const conditions = types.map(ext => {
+    // Handle variations (e.g., xlsx also matches xls)
+    if (ext === 'xlsx') {
+      return `contains(@href,'.xlsx') or contains(@href,'.xls')`;
+    } else if (ext === 'docx') {
+      return `contains(@href,'.docx') or contains(@href,'.doc')`;
+    } else if (ext === 'jpg') {
+      return `contains(@href,'.jpg') or contains(@href,'.jpeg')`;
+    } else {
+      return `contains(@href,'.${ext}')`;
+    }
+  });
+  
+  return `.//a[${conditions.join(' or ')}]`;
 }
 
 // Download directory
@@ -300,40 +325,40 @@ async function main() {
       // Store the detail page URL
       const detailUrl = await page.url();
     
-    // Find all PDF links on the detail page
-    const pdfXpath = `.//a[contains(@href,'.pdf')]`;
-    let pdfLinks = await page.$$(`xpath/${pdfXpath}`);
-    let pdfCount = pdfLinks.length;
+    // Build XPath for selected file types
+    const fileXpath = buildFileTypeXpath(fileTypes);
+    let fileLinks = await page.$$(`xpath/${fileXpath}`);
+    let fileCount = fileLinks.length;
     
-    // If no direct PDF links, try looking for attachment links
-    if (pdfCount === 0) {
-      const attachXpath = `.//a[contains(@class,'attachment') or contains(text(),'Download') or contains(text(),'PDF')]`;
-      pdfLinks = await page.$$(`xpath/${attachXpath}`);
-      pdfCount = pdfLinks.length;
+    // If no direct file links, try looking for generic attachment links
+    if (fileCount === 0) {
+      const attachXpath = `.//a[contains(@class,'attachment') or contains(text(),'Download')]`;
+      fileLinks = await page.$$(`xpath/${attachXpath}`);
+      fileCount = fileLinks.length;
     }
     
-    if (pdfCount === 0) {
+    if (fileCount === 0) {
       console.log(`  No attachments found`);
     } else {
-      console.log(`  Found ${pdfCount} attachment(s)`);
+      console.log(`  Found ${fileCount} attachment(s)`);
       
-      // Download each PDF
-      for (let j = 1; j <= pdfCount; j++) {
+      // Download each file
+      for (let j = 1; j <= fileCount; j++) {
         const beforeSnapshot = getDownloadSnapshot();
         
-        // Re-query PDF links (in case page state changed)
-        const currentPdfXpath = `(${pdfXpath})[${j}]`;
-        const currentPdfLinks = await page.$$(`xpath/${currentPdfXpath}`);
+        // Re-query file links (in case page state changed)
+        const currentFileXpath = `(${fileXpath})[${j}]`;
+        const currentFileLinks = await page.$$(`xpath/${currentFileXpath}`);
         
-        if (currentPdfLinks.length === 0) {
-          console.log(`  Downloading ${j}/${pdfCount}... ✗ Link not found`);
+        if (currentFileLinks.length === 0) {
+          console.log(`  Downloading ${j}/${fileCount}... ✗ Link not found`);
           continue;
         }
         
-        process.stdout.write(`  Downloading ${j}/${pdfCount}... `);
+        process.stdout.write(`  Downloading ${j}/${fileCount}... `);
         
         try {
-          await currentPdfLinks[0].click();
+          await currentFileLinks[0].click();
           await sleep(1500);
         } catch (e) {
           console.log(`✗ Click failed`);
@@ -359,9 +384,9 @@ async function main() {
           console.log(`✗ Download timeout`);
         }
         
-        // Navigate back to detail page if there are more PDFs and we left
+        // Navigate back to detail page if there are more files and we left
         const afterUrl = await page.url();
-        if (j < pdfCount && afterUrl !== detailUrl) {
+        if (j < fileCount && afterUrl !== detailUrl) {
           await page.goto(detailUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
           await sleep(800);
         }
