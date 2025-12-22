@@ -1,0 +1,7 @@
+body { font-family: sans-serif; margin: 2em; background: #f8f9fa; }
+.container { max-width: 500px; margin: 0 auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px #0001; padding: 2em; }
+h1 { text-align: center; }
+button, select, input[type=text] { font-size: 1.1em; margin: 0.5em 0; padding: 0.5em; }
+.status { display: flex; align-items: center; margin-top: 0.5em; }
+.status span { margin-left: 0.5em; font-weight: bold; }
+#output { margin-top: 1em; white-space: pre-wrap; background: #f4f4f4; padding: 1em; border-radius: 5px; min-height: 2em; }

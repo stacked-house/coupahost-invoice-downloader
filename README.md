@@ -1,72 +1,39 @@
-# Edge download runner
 
-This helper connects to a Microsoft Edge instance started with --remote-debugging-port and runs a simple automation that:
+# Coupa Invoice Downloader Desktop App (2025)
 
-- Uses an XPath extracted from your Selenium-IDE JSON file to find list rows
-- Clicks each row and clicks PDF attachments on the detail page
-- Forces downloads to a specified directory (default: your Downloads folder)
+This app provides a simple, user-friendly desktop interface for downloading invoices from Coupa using your browser. **All actions are performed through the app's graphical interface—no terminal or command-line steps are required.**
 
-How it works
-- You either start Edge with remote debugging enabled and run the script in `connect` mode, or run it without attaching (launch mode) and it will start Edge for you.
+## How to Use
 
-Important note about attaching to an existing tab
-- You can only attach to an existing Edge process if it was started with `--remote-debugging-port` enabled. If Edge is already open without that flag you won't be able to attach to the running instance.
+1. **Download and install** the app (or unzip the folder if provided as a portable app).
+2. **Open the app** (double-click the executable or run via Electron if developing).
+3. **Follow the three-step UI:**
+   - **Step 1:** Select your browser (Edge or Chrome) and click "Start/Check Browser". The app will launch the browser with remote debugging enabled if it's not already running.
+   - **Step 2:** Enter the full Coupa URL you want to process (e.g., the invoice list page) and click "Validate URL". The app will check that the page is open in your browser.
+   - **Step 3:** Click "Download" to start the invoice download process. Progress and results will be shown in the app.
 
-## How to use (3 steps)
+## Features
 
-1. **Stop all Edge processes:**
-	```powershell
-	Stop-Process -Name msedge -Force -ErrorAction SilentlyContinue
-	```
-2. **Start Edge with remote debugging:**
-	```powershell
-	Start-Process "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" -ArgumentList '--remote-debugging-port=9222','--no-first-run','--no-default-browser-check'
-	```
-3. **Run the downloader:**
-	```powershell
-	node run_downloads_edge.js --json Download_Invoices.json --mode connect --browserUrl http://127.0.0.1:9222 --target-url "coupahost" --xpath "//table[contains(@class,'table')]//tbody/tr[.//td[1]//a]//td[1]//a"
-	```
+- No command-line or terminal usage required
+- Supports Microsoft Edge and Google Chrome (Chromium-based browsers)
+- Automatically launches the browser with the correct settings if needed
+- Validates that the correct Coupa page is open before starting
+- Downloads all invoice PDFs as described in your Selenium-IDE JSON config
+- Progress and results are displayed in the app
 
-In Edge, log in and open the invoice page/tab you want before running the Node command.
-```
+## Limitations & Notes
 
-If you cannot start Edge with `--remote-debugging-port`, use `--mode launch` (the script will open a new Edge instance and run the flow there) — however this will not operate on a tab you already had open.
+- Only Chromium-based browsers (Edge, Chrome) are supported
+- The app uses the first XPath found in your Selenium JSON to identify list rows (custom XPath support may be added in the future)
+- If your site is slow, downloads may take longer; the app waits for each file to finish downloading
+- PDFs are saved to your default Downloads folder
 
-Limitations & notes
-- The script extracts the first XPath it finds inside the Selenium JSON and uses that to identify list rows. You can override that with the `--xpath` option to specify an exact XPath for the list rows (recommended for reliability).
-- The script uses simple waits (timeouts) around clicks; you may need to increase waits if your site is slow.
-- The script attempts to click PDF links and relies on Chrome/Edge behavior to save PDFs rather than open them in a viewer. If the site opens PDFs in a viewer page, the script will open them in a new tab to trigger the download behavior.
+## Troubleshooting
 
-- The script now watches the download folder for newly added files and waits for them to finish downloading before continuing. If your attachments are large or your connection is slow, increase the per-download timeout with `--wait-ms-per-download` (milliseconds; default 120000 = 2 minutes).
+- If the browser does not launch or connect, ensure no other instance is running with remote debugging disabled
+- If downloads do not appear, check that the Coupa page is fully loaded and you are logged in
+- For any issues, please contact the maintainer with details about your browser and OS
 
-Troubleshooting: permission/elevation prompts (run without admin) ⚠️
+---
 
-- If you were prompted for elevated/admin permissions while running `npm install` or the script, you can usually avoid that by:
-	- Running all commands in your workspace folder (no global installs). From PowerShell run in the project folder:
-
-```powershell
-cd "C:\Users\C127660\Desktop\Download_Scirpts"
-npm install --no-audit --no-fund --no-package-lock
-```
-
-	- If a package's install script tries to download a browser binary, use `--ignore-scripts` to prevent postinstall scripts from running:
-
-```powershell
-npm ci --ignore-scripts
-```
-
-	- Ensure you're not installing packages globally (no `-g`) and that `NODE_PATH` or `npm` prefix settings aren't pointing to a system directory that requires admin rights.
-
-- The runner uses `puppeteer-core`, which does not auto-download a Chromium binary (so it shouldn't require extra downloads). If you see a download request, please copy the terminal output here so I can identify which package or step triggered it.
-
-- If the permission prompt is coming from starting Edge (e.g., a Windows UAC), that usually indicates an updater or installer trying to run — starting Edge with `Start-Process` as shown in the Quick Start generally does not require admin rights.
-
-- If you continue to see a prompt, paste the terminal output or error message here and I'll diagnose the exact cause and either remove the step that requires elevation or provide an alternative (for example, using the already-running Edge `--remote-debugging-port` attach flow, or vendorizing the node modules).
-
-If you'd like, I can:
-
-- Add a `--xpath` parameter so you can supply the exact XPath to the list rows
-- Add better file-download monitoring (watch the folder and wait until expected files appear)
-- Convert this to a Python + Playwright version if you prefer Python
-
-Happy to update the script to better match your site structure — tell me which option you prefer or whether you want me to implement the `--xpath` arg.
+**All previous command-line instructions are now obsolete. Please use only the desktop app interface for all operations.**

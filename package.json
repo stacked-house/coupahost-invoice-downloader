@@ -1,12 +1,13 @@
 {
-  "name": "edge-download-runner",
-  "version": "0.1.0",
-  "description": "Run Selenium-IDE JSON downloads by attaching to Microsoft Edge and forcing downloads to the user's Downloads folder.",
-  "main": "run_downloads_edge.js",
+  "name": "coupa-invoice-downloader-app",
+  "version": "1.0.0",
+  "private": true,
+  "main": "electron/main.js",
   "scripts": {
-    "start": "node run_downloads_edge.js"
+    "start": "cd electron && npm install && npm start"
   },
   "dependencies": {
+    "electron": "^29.0.0",
     "puppeteer-core": "^19.10.0"
   }
 }

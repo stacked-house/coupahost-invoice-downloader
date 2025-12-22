@@ -1,0 +1,12 @@
+{
+  "name": "coupa-downloader-electron",
+  "version": "1.0.0",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron": "^29.0.0"
+  }
+}
