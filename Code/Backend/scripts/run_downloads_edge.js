@@ -379,15 +379,32 @@ async function main() {
         process.stdout.write(`  Downloading ${j}/${fileCount}... `);
         
         try {
-          await currentFileLinks[0].click();
-          await sleep(1500);
+          // Try to get the href and use page.evaluate to trigger download
+          const href = await currentFileLinks[0].evaluate(el => el.href);
+          
+          if (href) {
+            // Create a temporary download link with download attribute
+            await page.evaluate((url) => {
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = '';
+              a.style.display = 'none';
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+            }, href);
+          } else {
+            // Fallback to regular click
+            await currentFileLinks[0].click();
+          }
+          await sleep(2000);
         } catch (e) {
-          console.log(`✗ Click failed`);
+          console.log(`✗ Click failed: ${e.message}`);
           continue;
         }
         
         // Wait for download
-        const downloadedFile = await waitForNewDownload(beforeSnapshot, 30000);
+        const downloadedFile = await waitForNewDownload(beforeSnapshot, 60000);
         
         if (downloadedFile) {
           // Move file to invoice folder
