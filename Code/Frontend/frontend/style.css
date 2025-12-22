@@ -38,7 +38,7 @@ body {
 
 .container {
   width: 100%;
-  max-width: 520px;
+  max-width: 650px;
   background: var(--card-bg);
   border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
