@@ -65,6 +65,8 @@ function buildFileTypeXpath(types) {
       return `contains(@href,'.docx') or contains(@href,'.doc')`;
     } else if (ext === 'jpg') {
       return `contains(@href,'.jpg') or contains(@href,'.jpeg')`;
+    } else if (ext === 'xml') {
+      return `contains(@href,'.xml')`;
     } else {
       return `contains(@href,'.${ext}')`;
     }
