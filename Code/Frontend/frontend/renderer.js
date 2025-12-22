@@ -152,6 +152,19 @@ downloadBtn.addEventListener('click', async () => {
   const url = urlInput.value.trim();
   const configFile = downloadType.value;
   
+  // Collect selected file types
+  const fileTypeCheckboxes = document.querySelectorAll('input[name="filetype"]:checked');
+  const fileTypes = Array.from(fileTypeCheckboxes).map(cb => cb.value);
+  
+  if (fileTypes.length === 0) {
+    appendOutput('⚠ Please select at least one file type');
+    setDownloadingState(false);
+    return;
+  }
+  
+  appendOutput(`Selected file types: ${fileTypes.join(', ').toUpperCase()}`);
+  appendOutput('');
+  
   // Set up real-time output listener
   window.coupaAPI.onDownloadOutput((data) => {
     // Append output directly without timestamp for cleaner look
@@ -159,7 +172,7 @@ downloadBtn.addEventListener('click', async () => {
     outputDiv.scrollTop = outputDiv.scrollHeight;
   });
   
-  const res = await window.coupaAPI.startDownload(url, 'run_downloads_edge.js', configFile);
+  const res = await window.coupaAPI.startDownload(url, 'run_downloads_edge.js', configFile, fileTypes);
   
   // Clean up listener
   window.coupaAPI.removeDownloadOutputListener();

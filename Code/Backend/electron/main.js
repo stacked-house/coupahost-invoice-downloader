@@ -96,15 +96,18 @@ ipcMain.handle('validate-url', async (event, url) => {
   }
 });
 
-ipcMain.handle('start-download', async (event, url, script, configFile) => {
+ipcMain.handle('start-download', async (event, url, script, configFile, fileTypes) => {
   // Run the download script with the given URL, script file, and config file
   const scriptsDir = path.join(__dirname, '../scripts');
   const scriptPath = path.join(scriptsDir, script);
   const jsonPath = path.join(scriptsDir, configFile || 'Download_Invoices.json');
   const node = '/opt/homebrew/bin/node';
   
+  // Build file types argument
+  const fileTypesArg = fileTypes && fileTypes.length > 0 ? fileTypes.join(',') : 'pdf';
+  
   return new Promise((resolve) => {
-    const proc = spawn(node, [scriptPath, '--json', jsonPath, '--browserUrl', 'http://127.0.0.1:9222', '--target-url', url], { stdio: 'pipe' });
+    const proc = spawn(node, [scriptPath, '--json', jsonPath, '--browserUrl', 'http://127.0.0.1:9222', '--target-url', url, '--file-types', fileTypesArg], { stdio: 'pipe' });
     currentDownloadProcess = proc;
     
     let output = '';

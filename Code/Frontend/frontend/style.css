@@ -313,6 +313,84 @@ select:focus, input[type="text"]:focus {
   margin-top: 0.75rem;
 }
 
+/* File Type Selector */
+.file-types-section {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.file-types-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.file-types-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.file-type-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-sm);
+  background: white;
+  border: 1px solid var(--border);
+  transition: all 0.2s;
+  font-size: 0.8rem;
+}
+
+.file-type-checkbox:hover {
+  border-color: var(--primary);
+}
+
+.file-type-checkbox input[type="checkbox"] {
+  display: none;
+}
+
+.file-type-checkbox .checkmark {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.file-type-checkbox .checkmark::after {
+  content: '';
+  width: 8px;
+  height: 5px;
+  border-left: 2px solid white;
+  border-bottom: 2px solid white;
+  transform: rotate(-45deg) translateY(-1px);
+  opacity: 0;
+}
+
+.file-type-checkbox input[type="checkbox"]:checked + .checkmark {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.file-type-checkbox input[type="checkbox"]:checked + .checkmark::after {
+  opacity: 1;
+}
+
+.file-type-checkbox .file-ext {
+  color: var(--text);
+  font-weight: 500;
+}
+
 /* Output Section */
 .output-section {
   margin-top: 1.5rem;
