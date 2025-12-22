@@ -269,7 +269,7 @@ async function main() {
   // Process each invoice
   for (let i = 1; i <= invoiceCount; i++) {
     let retryCount = 0;
-    const maxRetries = 2; // Try 3 times total (initial + 2 retries)
+    const maxRetries = 3; // Try 4 times total (initial + 3 retries)
     
     while (retryCount <= maxRetries) {
       try {
@@ -448,14 +448,23 @@ async function main() {
     } catch (loopErr) {
       retryCount++;
       if (retryCount <= maxRetries) {
-        console.log(`  ✗ Error: ${loopErr.message} - Retrying (${retryCount}/${maxRetries})...`);
+        // Simplify common error messages
+        let friendlyMsg = 'Page changed during processing';
+        if (loopErr.message.includes('Execution context was destroyed')) {
+          friendlyMsg = 'Page navigated unexpectedly';
+        } else if (loopErr.message.includes('mutated')) {
+          friendlyMsg = 'Page content updated';
+        } else if (loopErr.message.includes('timeout')) {
+          friendlyMsg = 'Page load timeout';
+        }
+        console.log(`  ⚠ ${friendlyMsg}, retrying (${retryCount}/${maxRetries})...`);
         // Navigate back to list for retry
         try {
           await page.goto(listUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
           await sleep(2000);
         } catch (e) {}
       } else {
-        console.log(`  ✗ Error processing invoice: ${loopErr.message}`);
+        console.log(`  ✗ Failed after ${maxRetries + 1} attempts, skipping invoice`);
         // Try to get back to list for next invoice
         try {
           await page.goto(listUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
