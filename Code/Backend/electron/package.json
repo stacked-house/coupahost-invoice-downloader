@@ -1,12 +1,86 @@
 {
-  "name": "coupa-downloader-electron",
+  "name": "coupa-invoice-downloader",
   "version": "1.0.0",
+  "description": "Download invoices from Coupa with ease",
   "main": "main.js",
   "private": true,
+  "author": "stacked_house",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:dir": "electron-builder --dir"
+  },
+  "build": {
+    "appId": "com.stackedhouse.coupa-downloader",
+    "productName": "Coupa Invoice Downloader",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js"
+    ],
+    "extraResources": [
+      {
+        "from": "../scripts",
+        "to": "scripts"
+      },
+      {
+        "from": "../../Frontend/frontend",
+        "to": "frontend"
+      },
+      {
+        "from": "node_modules",
+        "to": "node_modules"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.business",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["arm64", "x64"]
+        },
+        {
+          "target": "zip",
+          "arch": ["arm64", "x64"]
+        }
+      ],
+      "icon": "icons/icon.icns"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "zip",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "icons/icon.ico",
+      "extraFiles": [
+        {
+          "from": "setup-windows.bat",
+          "to": "Setup - Run Me First.bat"
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowElevation": false,
+      "allowToChangeInstallationDirectory": false,
+      "deleteAppDataOnUninstall": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Coupa Invoice Downloader",
+      "runAfterFinish": false
+    }
   },
   "dependencies": {
-    "electron": "^29.0.0"
+    "puppeteer-core": "^19.11.1"
+  },
+  "devDependencies": {
+    "electron": "^29.0.0",
+    "electron-builder": "^24.9.1"
   }
 }

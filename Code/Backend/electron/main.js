@@ -5,22 +5,43 @@ const { spawn } = require('child_process');
 let mainWindow;
 let currentDownloadProcess = null;
 
+// Determine if we're running in development or packaged mode
+const isDev = !app.isPackaged;
+
+// Get the correct paths based on whether we're in dev or packaged mode
+function getResourcePath(relativePath) {
+  if (isDev) {
+    return path.join(__dirname, relativePath);
+  } else {
+    return path.join(process.resourcesPath, relativePath);
+  }
+}
+
 // Ensure fetch is available in Node (Node 18+ has global fetch, otherwise use node-fetch)
 if (typeof fetch === 'undefined') {
   global.fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 }
 
 function createWindow() {
+  // Paths differ between dev and packaged
+  const preloadPath = isDev 
+    ? path.join(__dirname, '../../Frontend/frontend/preload.js')
+    : path.join(process.resourcesPath, 'frontend/preload.js');
+  
+  const htmlPath = isDev
+    ? path.join(__dirname, '../../Frontend/frontend/index.html')
+    : path.join(process.resourcesPath, 'frontend/index.html');
+
   mainWindow = new BrowserWindow({
     width: 990,
     height: 1200,
     webPreferences: {
-      preload: path.join(__dirname, '../../Frontend/frontend/preload.js'),
+      preload: preloadPath,
       nodeIntegration: false,
       contextIsolation: true,
     },
   });
-  mainWindow.loadFile(path.join(__dirname, '../../Frontend/frontend/index.html'));
+  mainWindow.loadFile(htmlPath);
 }
 
 app.whenReady().then(() => {
@@ -98,10 +119,29 @@ ipcMain.handle('validate-url', async (event, url) => {
 
 ipcMain.handle('start-download', async (event, url, script, configFile, fileTypes) => {
   // Run the download script with the given URL, script file, and config file
-  const scriptsDir = path.join(__dirname, '../scripts');
+  const scriptsDir = isDev 
+    ? path.join(__dirname, '../scripts')
+    : path.join(process.resourcesPath, 'scripts');
   const scriptPath = path.join(scriptsDir, script);
   const jsonPath = path.join(scriptsDir, configFile || 'Download_Invoices.json');
-  const node = '/opt/homebrew/bin/node';
+  
+  // Find Node.js - try common paths
+  let node = 'node'; // Default to PATH
+  if (process.platform === 'darwin') {
+    // macOS common paths
+    const fs = require('fs');
+    const nodePaths = [
+      '/opt/homebrew/bin/node',
+      '/usr/local/bin/node',
+      '/usr/bin/node'
+    ];
+    for (const p of nodePaths) {
+      if (fs.existsSync(p)) {
+        node = p;
+        break;
+      }
+    }
+  }
   
   // Build file types argument
   const fileTypesArg = fileTypes && fileTypes.length > 0 ? fileTypes.join(',') : 'pdf';
