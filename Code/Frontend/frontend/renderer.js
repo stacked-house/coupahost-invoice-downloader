@@ -167,9 +167,16 @@ downloadBtn.addEventListener('click', async () => {
   
   // Set up real-time output listener
   window.coupaAPI.onDownloadOutput((data) => {
+    // Check if user is near the bottom before adding content
+    const isNearBottom = (outputDiv.scrollHeight - outputDiv.scrollTop - outputDiv.clientHeight) < 100;
+    
     // Append output directly without timestamp for cleaner look
     outputDiv.textContent += data;
-    outputDiv.scrollTop = outputDiv.scrollHeight;
+    
+    // Only auto-scroll if user was already near the bottom
+    if (isNearBottom) {
+      outputDiv.scrollTop = outputDiv.scrollHeight;
+    }
   });
   
   const res = await window.coupaAPI.startDownload(url, 'run_downloads_edge.js', configFile, fileTypes);
