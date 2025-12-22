@@ -331,18 +331,21 @@ async function main() {
   if (downloadedFiles.length > 0) {
     console.log('');
     console.log('Files:');
+    // Clean up filenames by removing duplicate indicators like (2), (3), etc.
+    const cleanFileName = (name) => name.replace(/\s*\(\d+\)(?=\.[^.]+$)/, '');
+    
     if (downloadedFiles.length <= 10) {
       downloadedFiles.forEach((file, idx) => {
-        console.log(`  ${idx + 1}. ${file}`);
+        console.log(`  ${idx + 1}. ${cleanFileName(file)}`);
       });
     } else {
       // Show first 5 and last 3
       for (let i = 0; i < 5; i++) {
-        console.log(`  ${i + 1}. ${downloadedFiles[i]}`);
+        console.log(`  ${i + 1}. ${cleanFileName(downloadedFiles[i])}`);
       }
       console.log(`  ... and ${downloadedFiles.length - 8} more ...`);
       for (let i = downloadedFiles.length - 3; i < downloadedFiles.length; i++) {
-        console.log(`  ${i + 1}. ${downloadedFiles[i]}`);
+        console.log(`  ${i + 1}. ${cleanFileName(downloadedFiles[i])}`);
       }
     }
   }

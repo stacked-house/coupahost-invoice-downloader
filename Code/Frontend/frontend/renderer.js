@@ -181,39 +181,26 @@ stopBtn.addEventListener('click', async () => {
 });
 
 refreshBtn.addEventListener('click', async () => {
-  appendOutput('Refreshing connection...');
+  // Reset all state
+  browserReady = false;
+  urlReady = false;
+  isDownloading = false;
   
-  // Re-check browser
-  setStatusBadge(browserStatus, 'pending', 'Checking...');
-  const browser = browserSelect.value;
-  const browserRes = await window.coupaAPI.checkBrowser(browser);
+  // Clear all status badges
+  setStatusBadge(browserStatus, '', '');
+  setStatusBadge(urlStatus, '', '');
   
-  if (browserRes.running) {
-    setStatusBadge(browserStatus, 'success', 'Connected');
-    browserReady = true;
-    appendOutput('Browser connection refreshed');
-  } else {
-    setStatusBadge(browserStatus, 'error', 'Not Found');
-    browserReady = false;
-    appendOutput('Browser not running');
-  }
+  // Reset URL input
+  urlInput.value = '';
   
-  // Re-validate URL if one is entered
-  const url = urlInput.value.trim();
-  if (url && browserReady) {
-    const urlRes = await window.coupaAPI.validateUrl(url);
-    if (urlRes.valid) {
-      setStatusBadge(urlStatus, 'success', 'Valid');
-      urlReady = true;
-      appendOutput('URL still valid');
-    } else {
-      setStatusBadge(urlStatus, 'error', 'Not Found');
-      urlReady = false;
-      appendOutput('URL no longer found in browser');
-    }
-  }
+  // Reset buttons
+  setDownloadingState(false);
+  downloadBtn.disabled = true;
+  stopBtn.disabled = true;
   
-  updateDownloadButtonState();
+  // Clear console and show ready message
+  clearOutput();
+  appendOutput('App reset. Ready to download invoices...');
 });
 
 clearOutputBtn.addEventListener('click', () => {

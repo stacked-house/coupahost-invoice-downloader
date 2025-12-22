@@ -12,7 +12,7 @@ if (typeof fetch === 'undefined') {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 900,
+    width: 990,
     height: 1200,
     webPreferences: {
       preload: path.join(__dirname, '../../Frontend/frontend/preload.js'),
