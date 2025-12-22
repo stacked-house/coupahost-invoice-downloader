@@ -10,6 +10,7 @@ const downloadBtn = document.getElementById('download-btn');
 const stopBtn = document.getElementById('stop-btn');
 const refreshBtn = document.getElementById('refresh-btn');
 const clearOutputBtn = document.getElementById('clear-output');
+const copyOutputBtn = document.getElementById('copy-output');
 const outputDiv = document.getElementById('output');
 
 // State
@@ -206,6 +207,19 @@ refreshBtn.addEventListener('click', async () => {
 clearOutputBtn.addEventListener('click', () => {
   clearOutput();
   appendOutput('Console cleared');
+});
+
+copyOutputBtn.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(outputDiv.textContent);
+    // Visual feedback - briefly change icon color
+    copyOutputBtn.style.color = 'var(--success)';
+    setTimeout(() => {
+      copyOutputBtn.style.color = '';
+    }, 1000);
+  } catch (err) {
+    console.error('Failed to copy:', err);
+  }
 });
 
 // Initialize
