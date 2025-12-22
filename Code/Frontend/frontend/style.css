@@ -332,6 +332,11 @@ select:focus, input[type="text"]:focus {
   justify-content: space-between;
 }
 
+.output-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
 .btn-clear {
   background: transparent;
   border: none;

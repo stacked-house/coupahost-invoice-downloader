@@ -37,8 +37,65 @@ if (!jsonPath) {
 // Download directory
 const downloadDir = path.join(os.homedir(), 'Downloads');
 
-// Track downloaded files
+// Track downloaded files (with their folders)
 const downloadedFiles = [];
+
+/**
+ * Sanitize a string for use as a folder name
+ */
+function sanitizeFolderName(name) {
+  // Remove or replace characters that are invalid in folder names
+  return name
+    .replace(/[<>:"/\\|?*]/g, '') // Remove invalid characters
+    .replace(/\s+/g, ' ')          // Normalize whitespace
+    .trim();
+}
+
+/**
+ * Create invoice folder if it doesn't exist
+ */
+function ensureInvoiceFolder(invoiceName) {
+  const folderName = sanitizeFolderName(invoiceName);
+  const folderPath = path.join(downloadDir, folderName);
+  
+  if (!fs.existsSync(folderPath)) {
+    fs.mkdirSync(folderPath, { recursive: true });
+  }
+  
+  return { folderName, folderPath };
+}
+
+/**
+ * Move a file from Downloads to the invoice folder
+ */
+function moveToInvoiceFolder(fileName, invoiceFolderPath) {
+  const sourcePath = path.join(downloadDir, fileName);
+  const destPath = path.join(invoiceFolderPath, fileName);
+  
+  try {
+    // If file already exists in destination, add a number
+    let finalPath = destPath;
+    let counter = 1;
+    while (fs.existsSync(finalPath)) {
+      const ext = path.extname(fileName);
+      const base = path.basename(fileName, ext);
+      finalPath = path.join(invoiceFolderPath, `${base} (${counter})${ext}`);
+      counter++;
+    }
+    
+    fs.renameSync(sourcePath, finalPath);
+    return path.basename(finalPath);
+  } catch (e) {
+    // If move fails, try copy + delete
+    try {
+      fs.copyFileSync(sourcePath, destPath);
+      fs.unlinkSync(sourcePath);
+      return fileName;
+    } catch (copyErr) {
+      return null;
+    }
+  }
+}
 
 /**
  * Get current download directory snapshot
@@ -210,7 +267,11 @@ async function main() {
         // If we can't get info, try to continue anyway
       }
       
+      // Create folder for this invoice
+      const { folderName, folderPath } = ensureInvoiceFolder(linkText);
+      
       console.log(`Opening invoice ${i}/${invoiceCount}: ${linkText}`);
+      console.log(`  📁 Folder: ${folderName}/`);
       
       // Click the invoice link and wait for navigation
       try {
@@ -283,9 +344,17 @@ async function main() {
         const downloadedFile = await waitForNewDownload(beforeSnapshot, 30000);
         
         if (downloadedFile) {
-          console.log(`✓ ${downloadedFile}`);
-          downloadedFiles.push(downloadedFile);
-          totalDownloads++;
+          // Move file to invoice folder
+          const movedFileName = moveToInvoiceFolder(downloadedFile, folderPath);
+          if (movedFileName) {
+            console.log(`✓ ${movedFileName}`);
+            downloadedFiles.push({ folder: folderName, file: movedFileName });
+            totalDownloads++;
+          } else {
+            console.log(`✓ ${downloadedFile} (could not move to folder)`);
+            downloadedFiles.push({ folder: 'Downloads', file: downloadedFile });
+            totalDownloads++;
+          }
         } else {
           console.log(`✗ Download timeout`);
         }
@@ -330,23 +399,26 @@ async function main() {
   
   if (downloadedFiles.length > 0) {
     console.log('');
-    console.log('Files:');
+    console.log('Files organized by invoice:');
+    
     // Clean up filenames by removing duplicate indicators like (2), (3), etc.
     const cleanFileName = (name) => name.replace(/\s*\(\d+\)(?=\.[^.]+$)/, '');
     
-    if (downloadedFiles.length <= 10) {
-      downloadedFiles.forEach((file, idx) => {
-        console.log(`  ${idx + 1}. ${cleanFileName(file)}`);
+    // Group files by folder
+    const folderGroups = {};
+    downloadedFiles.forEach(item => {
+      if (!folderGroups[item.folder]) {
+        folderGroups[item.folder] = [];
+      }
+      folderGroups[item.folder].push(item.file);
+    });
+    
+    // Display grouped by folder
+    for (const [folder, files] of Object.entries(folderGroups)) {
+      console.log(`  📁 ${folder}/`);
+      files.forEach(file => {
+        console.log(`     └─ ${cleanFileName(file)}`);
       });
-    } else {
-      // Show first 5 and last 3
-      for (let i = 0; i < 5; i++) {
-        console.log(`  ${i + 1}. ${cleanFileName(downloadedFiles[i])}`);
-      }
-      console.log(`  ... and ${downloadedFiles.length - 8} more ...`);
-      for (let i = downloadedFiles.length - 3; i < downloadedFiles.length; i++) {
-        console.log(`  ${i + 1}. ${cleanFileName(downloadedFiles[i])}`);
-      }
     }
   }
   
