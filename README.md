@@ -7,10 +7,15 @@ A desktop app for batch downloading invoice attachments from Coupa. Works on Mac
 
 - 📥 Download multiple invoice attachments at once
 - 📁 Automatically organizes files into folders with date-prefixed names (e.g., `2025-06-23 - INV-12345`)
+- � Real-time progress bar showing invoice count (e.g., "Processing: 12 of 90 invoices")
 - 🔄 Retry logic for failed downloads (up to 3 attempts)
 - 📄 Filter by file type: PDF, Excel, CSV, Word, PNG, JPG, XML
-- 🖥️ Clean, modern interface with real-time progress
+- 🖥️ Clean, modern interface with selectable console output
 - 🤖 Smart auto-detection of invoice columns and page layouts
+- 💤 Prevents system sleep during downloads (keeps screen awake)
+- 📝 Detailed error reporting with specific filenames for timeouts
+- 📋 Copy/paste support with right-click context menus
+- 🔄 Automatic page refresh to ensure accurate invoice counts
 - 📊 Concise summary with failed download tracking
 - 🔒 Works without admin rights
 
@@ -77,10 +82,14 @@ Or use the app's **Start Browser** button to launch it automatically.
 5. Click **Start Download**
 
 **The app will automatically:**
+- Reload the page to ensure accurate invoice counts
 - Detect the invoice column regardless of its position in the table
 - Extract invoice dates and create chronologically sortable folders
 - Download all attachments from each invoice
-- Show a summary with failed downloads (if any)
+- Show a visual progress bar tracking invoice completion
+- Prevent your computer from sleeping during the download
+- Show detailed error messages with specific filenames if downloads fail
+- Display a summary with failed downloads (if any)
 
 Files are saved to your Downloads folder in date-prefixed folders like:
 ```
@@ -108,9 +117,13 @@ Downloads/
 
 **Tips:**
 - Works with both "Invoices" and "Invoice Lines" pages automatically
-- Right-click in the URL field to paste
+- Right-click in any input field to access copy/paste menu
 - The invoice column can be in any position - the app finds it automatically
-- Failed downloads are listed at the end with reasons
+- Failed downloads show specific filenames and reasons at the end
+- You can select and copy text from the console output
+- The system will stay awake during downloads - no need to keep your screen active
+- Progress bar updates in real-time as each invoice is processed
+- Page refreshes automatically to get accurate counts when switching date filters
 
 ---
 
