@@ -492,6 +492,25 @@ async function main() {
           continue;
         }
         
+        // Get file name/url for error reporting
+        let fileName = `File ${j}`;
+        try {
+          fileName = await currentFileLinks[0].evaluate(el => {
+            // Try to get filename from href
+            const href = el.href || '';
+            const urlParts = href.split('/');
+            const nameFromUrl = urlParts[urlParts.length - 1]?.split('?')[0] || '';
+            
+            // Try to get filename from text content
+            const textName = el.textContent?.trim() || '';
+            
+            // Prefer text content, fallback to URL
+            return nameFromUrl || textName || `File ${j}`;
+          });
+        } catch (e) {
+          // Use default if we can't get filename
+        }
+        
         process.stdout.write(`  Downloading ${j}/${fileCount}... `);
         
         try {
@@ -516,7 +535,7 @@ async function main() {
           await sleep(2000);
         } catch (e) {
           console.log(`✗ Click failed: ${e.message}`);
-          failedDownloads.push({ invoice: folderName, reason: 'Click failed' });
+          failedDownloads.push({ invoice: folderName, file: fileName, reason: 'Click failed' });
           continue;
         }
         
@@ -536,8 +555,8 @@ async function main() {
             totalDownloads++;
           }
         } else {
-          console.log(`✗ Download timeout`);
-          failedDownloads.push({ invoice: folderName, reason: 'Download timeout' });
+          console.log(`✗ Download timeout - ${fileName}`);
+          failedDownloads.push({ invoice: folderName, file: fileName, reason: 'Download timeout' });
         }
         
         // Navigate back to detail page if there are more files and we left
@@ -610,7 +629,8 @@ async function main() {
       if (!failuresByInvoice[item.invoice]) {
         failuresByInvoice[item.invoice] = [];
       }
-      failuresByInvoice[item.invoice].push(item.reason);
+      const detail = item.file ? `${item.reason} - ${item.file}` : item.reason;
+      failuresByInvoice[item.invoice].push(detail);
     });
     
     // Display grouped by invoice
