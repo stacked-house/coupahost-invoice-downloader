@@ -163,8 +163,21 @@ ipcMain.handle('start-download', async (event, url, script, configFile, fileType
   // Build file types argument
   const fileTypesArg = fileTypes && fileTypes.length > 0 ? fileTypes.join(',') : 'pdf';
   
+  // Set NODE_PATH to include the packaged node_modules
+  const nodeModulesPath = isDev
+    ? path.join(__dirname, 'node_modules')
+    : path.join(process.resourcesPath, 'node_modules');
+  
+  const env = {
+    ...process.env,
+    NODE_PATH: nodeModulesPath
+  };
+  
   return new Promise((resolve) => {
-    const proc = spawn(node, [scriptPath, '--json', jsonPath, '--browserUrl', 'http://127.0.0.1:9222', '--target-url', url, '--file-types', fileTypesArg], { stdio: 'pipe' });
+    const proc = spawn(node, [scriptPath, '--json', jsonPath, '--browserUrl', 'http://127.0.0.1:9222', '--target-url', url, '--file-types', fileTypesArg], { 
+      stdio: 'pipe',
+      env: env
+    });
     currentDownloadProcess = proc;
     
     let output = '';
