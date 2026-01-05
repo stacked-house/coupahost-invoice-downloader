@@ -11,11 +11,16 @@ const refreshBtn = document.getElementById('refresh-btn');
 const clearOutputBtn = document.getElementById('clear-output');
 const copyOutputBtn = document.getElementById('copy-output');
 const outputDiv = document.getElementById('output');
+const progressContainer = document.getElementById('progress-container');
+const progressFill = document.getElementById('progress-fill');
+const progressText = document.getElementById('progress-text');
 
 // State
 let browserReady = false;
 let urlReady = false;
 let isDownloading = false;
+let totalInvoices = 0;
+let currentInvoice = 0;
 
 // Utility Functions
 function setStatusBadge(el, status, msg) {
@@ -39,6 +44,27 @@ function appendOutput(text) {
 
 function clearOutput() {
   outputDiv.textContent = '';
+}
+
+function updateProgress(current, total) {
+  currentInvoice = current;
+  totalInvoices = total;
+  
+  const percent = total > 0 ? (current / total) * 100 : 0;
+  progressFill.style.width = percent + '%';
+  progressText.textContent = `Processing: ${current} of ${total} invoices`;
+}
+
+function showProgress() {
+  progressContainer.style.display = 'block';
+  totalInvoices = 0;
+  currentInvoice = 0;
+  progressFill.style.width = '0%';
+  progressText.textContent = 'Preparing...';
+}
+
+function hideProgress() {
+  progressContainer.style.display = 'none';
 }
 
 function updateDownloadButtonState() {
@@ -147,6 +173,7 @@ validateBtn.addEventListener('click', async () => {
 downloadBtn.addEventListener('click', async () => {
   setDownloadingState(true);
   clearOutput();
+  showProgress();
   
   const url = urlInput.value.trim();
   const configFile = 'Download_Invoices_Auto.json';
@@ -158,6 +185,7 @@ downloadBtn.addEventListener('click', async () => {
   if (fileTypes.length === 0) {
     appendOutput('⚠ Please select at least one file type');
     setDownloadingState(false);
+    hideProgress();
     return;
   }
   
@@ -171,6 +199,23 @@ downloadBtn.addEventListener('click', async () => {
     
     // Append output directly without timestamp for cleaner look
     outputDiv.textContent += data;
+    
+    // Parse output for progress information
+    // Look for "Opening invoice X/Y" pattern
+    const openingMatch = data.match(/Opening invoice (\d+)\/(\d+)/);
+    if (openingMatch) {
+      const current = parseInt(openingMatch[1]);
+      const total = parseInt(openingMatch[2]);
+      updateProgress(current, total);
+    }
+    
+    // Look for "Found X invoice(s) to process" pattern
+    const foundMatch = data.match(/Found (\d+) invoice\(s\) to process/);
+    if (foundMatch) {
+      const total = parseInt(foundMatch[1]);
+      totalInvoices = total;
+      updateProgress(0, total);
+    }
     
     // Only auto-scroll if user was already near the bottom
     if (isNearBottom) {
@@ -187,6 +232,7 @@ downloadBtn.addEventListener('click', async () => {
     outputDiv.textContent += '\n\n✗ Process exited with errors\n';
   }
   
+  hideProgress();
   setDownloadingState(false);
 });
 
