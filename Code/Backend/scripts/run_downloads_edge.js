@@ -80,6 +80,7 @@ const downloadDir = path.join(os.homedir(), 'Downloads');
 
 // Track downloaded files (with their folders)
 const downloadedFiles = [];
+const failedDownloads = [];
 
 /**
  * Sanitize a string for use as a folder name
@@ -93,10 +94,61 @@ function sanitizeFolderName(name) {
 }
 
 /**
+ * Convert date format to YYYY-MM-DD
+ */
+function normalizeDate(dateStr) {
+  if (!dateStr) return '';
+  
+  // If already in YYYY-MM-DD format, return as-is
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return dateStr;
+  }
+  
+  // Convert MM/DD/YYYY to YYYY-MM-DD
+  let match = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (match) {
+    const month = String(match[1]).padStart(2, '0');
+    const day = String(match[2]).padStart(2, '0');
+    const year = match[3];
+    return `${year}-${month}-${day}`;
+  }
+  
+  // Convert MM/DD/YY to YYYY-MM-DD (assuming 20YY for 00-99)
+  match = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
+  if (match) {
+    const month = String(match[1]).padStart(2, '0');
+    const day = String(match[2]).padStart(2, '0');
+    let year = parseInt(match[3], 10);
+    // Assume 2000+ for 2-digit years
+    year = year < 100 ? 2000 + year : year;
+    return `${year}-${month}-${day}`;
+  }
+  
+  return '';
+}
+
+/**
  * Create invoice folder if it doesn't exist
  */
-function ensureInvoiceFolder(invoiceName) {
-  const folderName = sanitizeFolderName(invoiceName);
+function ensureInvoiceFolder(invoiceName, invoiceDate = '') {
+  let folderName = sanitizeFolderName(invoiceName);
+  
+  // If we couldn't extract the invoice name, it will be 'Unknown'
+  // In that case, we'll try to use the date or just skip
+  if (folderName === 'Unknown' && !invoiceDate) {
+    folderName = `Unknown_${Date.now()}`;
+  }
+  
+  // Prepend date if available and not already in the name
+  if (invoiceDate && folderName !== 'Unknown') {
+    const normalizedDate = normalizeDate(invoiceDate);
+    if (normalizedDate && !folderName.startsWith(normalizedDate)) {
+      folderName = `${normalizedDate} ${folderName}`;
+    }
+  } else if (!invoiceDate && folderName !== 'Unknown') {
+    // If no date found, just use invoice name as-is (already sanitized)
+  }
+  
   const folderPath = path.join(downloadDir, folderName);
   
   if (!fs.existsSync(folderPath)) {
@@ -299,22 +351,47 @@ async function main() {
           break; // Exit retry loop
         }
         
-        // Get the invoice name/number and href BEFORE clicking (to avoid context issues)
+        // Get the invoice name/number, date, and href BEFORE clicking (to avoid context issues)
         let linkText = 'Unknown';
         let linkHref = '';
+        let invoiceDate = '';
         try {
-          const linkInfo = await page.evaluate(el => ({
-            text: el.textContent?.trim() || 'Unknown',
-          href: el.href || ''
-        }), linkElements[0]);
-        linkText = linkInfo.text;
-        linkHref = linkInfo.href;
-      } catch (e) {
-        // If we can't get info, try to continue anyway
-      }
-      
-      // Create folder for this invoice
-      const { folderName, folderPath } = ensureInvoiceFolder(linkText);
+          const linkInfo = await page.evaluate(el => {
+            // Get the invoice link text from the passed element
+            const text = el.textContent?.trim() || '';
+            
+            // Try to find the date from the same row
+            let date = '';
+            const row = el.closest('tr');
+            if (row) {
+              // Look for date patterns in the row cells
+              const cells = row.querySelectorAll('td');
+              for (const cell of cells) {
+                const cellText = cell.textContent?.trim() || '';
+                // Match date patterns like MM/DD/YYYY, MM/DD/YY, or YYYY-MM-DD
+                const dateMatch = cellText.match(/(\d{1,2}\/\d{1,2}\/\d{2,4}|\d{4}-\d{2}-\d{2})/);
+                if (dateMatch) {
+                  date = dateMatch[0];
+                  break;
+                }
+              }
+            }
+            
+            return {
+              text: text,
+              href: el.href || '',
+              date: date
+            };
+          }, linkElements[0]);
+          linkText = linkInfo.text || 'Unknown';
+          linkHref = linkInfo.href;
+          invoiceDate = linkInfo.date;
+        } catch (e) {
+          // If we can't get info, try to continue anyway
+        }
+        
+        // Create folder for this invoice
+        const { folderName, folderPath } = ensureInvoiceFolder(linkText, invoiceDate);
       
       console.log(`Opening invoice ${i}/${invoiceCount}: ${linkText}`);
       console.log(`  📁 Folder: ${folderName}/`);
@@ -373,6 +450,7 @@ async function main() {
         
         if (currentFileLinks.length === 0) {
           console.log(`  Downloading ${j}/${fileCount}... ✗ Link not found`);
+          failedDownloads.push({ invoice: folderName, reason: 'Link not found' });
           continue;
         }
         
@@ -400,6 +478,7 @@ async function main() {
           await sleep(2000);
         } catch (e) {
           console.log(`✗ Click failed: ${e.message}`);
+          failedDownloads.push({ invoice: folderName, reason: 'Click failed' });
           continue;
         }
         
@@ -420,6 +499,7 @@ async function main() {
           }
         } else {
           console.log(`✗ Download timeout`);
+          failedDownloads.push({ invoice: folderName, reason: 'Download timeout' });
         }
         
         // Navigate back to detail page if there are more files and we left
@@ -482,29 +562,29 @@ async function main() {
   console.log(`Processed ${processedInvoices} invoice(s)`);
   console.log(`Downloaded ${totalDownloads} file(s)`);
   
-  if (downloadedFiles.length > 0) {
+  if (failedDownloads.length > 0) {
     console.log('');
-    console.log('Files organized by invoice:');
+    console.log(`Failed Downloads: ${failedDownloads.length}`);
     
-    // Clean up filenames by removing duplicate indicators like (2), (3), etc.
-    const cleanFileName = (name) => name.replace(/\s*\(\d+\)(?=\.[^.]+$)/, '');
-    
-    // Group files by folder
-    const folderGroups = {};
-    downloadedFiles.forEach(item => {
-      if (!folderGroups[item.folder]) {
-        folderGroups[item.folder] = [];
+    // Group failures by invoice
+    const failuresByInvoice = {};
+    failedDownloads.forEach(item => {
+      if (!failuresByInvoice[item.invoice]) {
+        failuresByInvoice[item.invoice] = [];
       }
-      folderGroups[item.folder].push(item.file);
+      failuresByInvoice[item.invoice].push(item.reason);
     });
     
-    // Display grouped by folder
-    for (const [folder, files] of Object.entries(folderGroups)) {
-      console.log(`  📁 ${folder}/`);
-      files.forEach(file => {
-        console.log(`     └─ ${cleanFileName(file)}`);
+    // Display grouped by invoice
+    for (const [invoice, reasons] of Object.entries(failuresByInvoice)) {
+      console.log(`  📁 ${invoice}/`);
+      reasons.forEach(reason => {
+        console.log(`     └─ ${reason}`);
       });
     }
+  } else {
+    console.log('');
+    console.log('Failed Downloads: 0');
   }
   
   console.log('========================================');
