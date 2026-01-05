@@ -292,6 +292,18 @@ async function main() {
   // Store the list URL to return to
   const listUrl = await page.url();
   
+  // Force a page reload to ensure we get fresh data (not cached from previous date selections)
+  try {
+    await page.reload({ waitUntil: 'domcontentloaded', timeout: 30000 });
+    await sleep(1500); // Give the page time to fully render
+    await page.waitForSelector('xpath/.//table//tbody//tr//td//a', { timeout: 15000 });
+    await sleep(500); // Additional stabilization time
+  } catch (e) {
+    console.log('✗ Could not find invoice table on page');
+    await browser.disconnect();
+    process.exit(1);
+  }
+  
   // Dynamically find the Invoice column by looking for header containing "invoice"
   let invoiceColumnIndex = null;
   try {
@@ -321,6 +333,7 @@ async function main() {
     console.log('Using fallback: searching all table rows with links');
   }
   
+  // Get initial count of invoices
   let invoiceRows = await page.$$(`xpath/${invoiceRowXpath}`);
   let invoiceCount = invoiceRows.length;
   
