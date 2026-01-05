@@ -6,10 +6,12 @@ A desktop app for batch downloading invoice attachments from Coupa. Works on Mac
 ## Features
 
 - 📥 Download multiple invoice attachments at once
-- 📁 Automatically organizes files into folders by invoice name
+- 📁 Automatically organizes files into folders with date-prefixed names (e.g., `2025-06-23 - INV-12345`)
 - 🔄 Retry logic for failed downloads (up to 3 attempts)
-- 📄 Filter by file type: PDF, Excel, CSV, Word, PNG, JPG
+- 📄 Filter by file type: PDF, Excel, CSV, Word, PNG, JPG, XML
 - 🖥️ Clean, modern interface with real-time progress
+- 🤖 Smart auto-detection of invoice columns and page layouts
+- 📊 Concise summary with failed download tracking
 - 🔒 Works without admin rights
 
 ---
@@ -69,12 +71,26 @@ Or use the app's **Start Browser** button to launch it automatically.
 ### Step 3: Download
 
 1. Open the **Coupa Invoice Downloader** app
-2. Select the browser (Edge or Chrome)
-3. Paste the Coupa URL and click **Validate**
-4. Check the file types you want (PDF, Excel, etc.)
-5. Click **Download**
+2. Click **Check Browser** to connect to Edge or Chrome
+3. Paste the Coupa invoice list URL and click **Validate**
+4. Select the file types you want to download (PDF, Excel, etc.)
+5. Click **Start Download**
 
-Files are saved to your Downloads folder, organized by invoice name.
+**The app will automatically:**
+- Detect the invoice column regardless of its position in the table
+- Extract invoice dates and create chronologically sortable folders
+- Download all attachments from each invoice
+- Show a summary with failed downloads (if any)
+
+Files are saved to your Downloads folder in date-prefixed folders like:
+```
+Downloads/
+├── 2025-06-23 - INV-12345/
+│   ├── invoice.pdf
+│   └── receipt.xlsx
+├── 2025-06-24 - INV-12346/
+│   └── contract.pdf
+```
 
 ---
 
@@ -83,10 +99,18 @@ Files are saved to your Downloads folder, organized by invoice name.
 | Problem | Solution |
 |---------|----------|
 | "Failed to connect to browser" | Make sure the browser is running with `--remote-debugging-port=9222` |
-| First invoice fails | The app will automatically retry up to 3 times |
-| No attachments found | Check that the invoice detail page has downloadable files |
+| "Skipping row - link not found" | The app auto-detects invoice columns; ensure you're on an invoice list page |
+| Downloads timeout | Check your internet connection; the app will retry automatically |
+| No attachments found | Verify that the invoice detail page has downloadable files |
+| Wrong folder names | Dates are extracted from the table; if missing, only invoice number is used |
 | Windows: App won't start | Wait 30-60 seconds on first launch (extracting files) |
 | Mac: "App can't be opened" | Right-click → Open → Open |
+
+**Tips:**
+- Works with both "Invoices" and "Invoice Lines" pages automatically
+- Right-click in the URL field to paste
+- The invoice column can be in any position - the app finds it automatically
+- Failed downloads are listed at the end with reasons
 
 ---
 
