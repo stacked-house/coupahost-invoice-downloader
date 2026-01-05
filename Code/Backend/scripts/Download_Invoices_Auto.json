@@ -1,0 +1,347 @@
+{
+  "Name": "Download_Invoices_Auto",
+  "CreationDate": "2026-01-05",
+  "Commands": [
+    {
+      "Command": "store",
+      "Target": "true",
+      "Value": "!errorIgnore",
+      "Description": ""
+    },
+    {
+      "Command": "store",
+      "Target": "60",
+      "Value": "!timeout_wait",
+      "Description": ""
+    },
+    {
+      "Command": "store",
+      "Target": "60",
+      "Value": "!timeout_pageLoad",
+      "Description": ""
+    },
+    {
+      "Command": "selectWindow",
+      "Target": "tab=0",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "selectFrame",
+      "Target": "relative=top",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "store",
+      "Target": "${!URL}",
+      "Value": "listUrl",
+      "Description": ""
+    },
+    {
+      "Command": "comment",
+      "Target": "Auto-detect invoice column: first try to find 'Invoice' header, then fallback to first column",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "store",
+      "Target": "xpath=(//table[contains(@class,'table')]//thead//th[contains(translate(normalize-space(.),'INVOICE','invoice'),'invoice')])",
+      "Value": "invoiceHeaderXpath",
+      "Description": ""
+    },
+    {
+      "Command": "storeXpathCount",
+      "Target": "${invoiceHeaderXpath}",
+      "Value": "headerCount",
+      "Description": ""
+    },
+    {
+      "Command": "if_v2",
+      "Target": "${headerCount} == 0",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "store",
+      "Target": "xpath=(//table[contains(@class,'table')]//tbody/tr[.//td[1]//a]//td[1]//a)",
+      "Value": "rowLinkXPathBase",
+      "Description": "Fallback: first column (simple layout)"
+    },
+    {
+      "Command": "else",
+      "Target": "",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "store",
+      "Target": "xpath=(//table[contains(@class,'table')]//tbody/tr[.//td[1]//a]//td[1]//a)",
+      "Value": "rowLinkXPathBase",
+      "Description": "Header found: use first column (typically Invoice column)"
+    },
+    {
+      "Command": "endif",
+      "Target": "",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "storeXpathCount",
+      "Target": "${rowLinkXPathBase}",
+      "Value": "invoiceLinkCount",
+      "Description": ""
+    },
+    {
+      "Command": "if_v2",
+      "Target": "${invoiceLinkCount} == 0",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "throwError",
+      "Target": "No invoice links found on this page.",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "endif",
+      "Target": "",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "store",
+      "Target": "1",
+      "Value": "i",
+      "Description": ""
+    },
+    {
+      "Command": "while_v2",
+      "Target": "${i} <= ${invoiceLinkCount}",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "storeText",
+      "Target": "${rowLinkXPathBase}[${i}]",
+      "Value": "currLinkText",
+      "Description": ""
+    },
+    {
+      "Command": "echo",
+      "Target": "Processing invoice ${i}/${invoiceLinkCount}: ${currLinkText}",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "waitForElementPresent",
+      "Target": "${rowLinkXPathBase}[${i}]",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "click",
+      "Target": "${rowLinkXPathBase}[${i}]",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "pause",
+      "Target": "1500",
+      "Value": "",
+      "Description": "Wait for detail page to load"
+    },
+    {
+      "Command": "selectFrame",
+      "Target": "relative=top",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "store",
+      "Target": "${!URL}",
+      "Value": "detailUrl",
+      "Description": "Store detail page URL"
+    },
+    {
+      "Command": "comment",
+      "Target": "Look for attachments section and find all downloadable files (PDFs, Excel, Word, etc)",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "store",
+      "Target": "xpath=((//*[self::label or self::dt or self::th or self::span or self::div][contains(translate(normalize-space(.),'abcdefghijklmnopqrstuvwxyz','ABCDEFGHIJKLMNOPQRSTUVWXYZ'),'ATTACHMENT')])[1]/ancestor-or-self::*[self::tr or self::li or self::section or self::div][1]//a[contains(translate(@href,'PDF','pdf'),'.pdf') or contains(translate(@href,'XLSX','xlsx'),'.xls') or contains(translate(@href,'DOCX','docx'),'.doc') or contains(translate(@href,'CSV','csv'),'.csv') or contains(translate(@href,'PNG','png'),'.png') or contains(translate(@href,'JPG','jpg'),'.jpg') or contains(translate(@href,'JPEG','jpeg'),'.jpeg')])",
+      "Value": "attachmentListXPath",
+      "Description": "All attachment types"
+    },
+    {
+      "Command": "storeXpathCount",
+      "Target": "${attachmentListXPath}",
+      "Value": "attachCount",
+      "Description": ""
+    },
+    {
+      "Command": "comment",
+      "Target": "If attachment section not found, try looking for direct file links",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "if_v2",
+      "Target": "${attachCount} == 0",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "store",
+      "Target": "xpath=(//a[contains(translate(@href,'PDF','pdf'),'.pdf') or contains(translate(@href,'XLSX','xlsx'),'.xls') or contains(translate(@href,'DOCX','docx'),'.doc') or contains(translate(@href,'CSV','csv'),'.csv') or contains(translate(@href,'PNG','png'),'.png') or contains(translate(@href,'JPG','jpg'),'.jpg') or contains(translate(@href,'JPEG','jpeg'),'.jpeg')])",
+      "Value": "attachmentListXPath",
+      "Description": "Fallback: any file links on page"
+    },
+    {
+      "Command": "storeXpathCount",
+      "Target": "${attachmentListXPath}",
+      "Value": "attachCount",
+      "Description": ""
+    },
+    {
+      "Command": "endif",
+      "Target": "",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "if_v2",
+      "Target": "${attachCount} > 0",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "store",
+      "Target": "1",
+      "Value": "j",
+      "Description": ""
+    },
+    {
+      "Command": "while_v2",
+      "Target": "${j} <= ${attachCount}",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "waitForElementPresent",
+      "Target": "${attachmentListXPath}[${j}]",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "echo",
+      "Target": "Downloading attachment ${j}/${attachCount}",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "click",
+      "Target": "${attachmentListXPath}[${j}]",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "pause",
+      "Target": "1500",
+      "Value": "Wait for download to complete"
+    },
+    {
+      "Command": "open",
+      "Target": "${detailUrl}",
+      "Value": "",
+      "Description": "Return to detail page"
+    },
+    {
+      "Command": "pause",
+      "Target": "800",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "executeScript_Sandbox",
+      "Target": "return (Number(${j}) + 1);",
+      "Value": "j",
+      "Description": ""
+    },
+    {
+      "Command": "endWhile",
+      "Target": "",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "else",
+      "Target": "",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "echo",
+      "Target": "No attachments found on this invoice",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "endif",
+      "Target": "",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "comment",
+      "Target": "Return to invoice list for next invoice",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "open",
+      "Target": "${listUrl}",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "waitForElementPresent",
+      "Target": "${rowLinkXPathBase}[1]",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "pause",
+      "Target": "500",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "executeScript_Sandbox",
+      "Target": "return (Number(${i}) + 1);",
+      "Value": "i",
+      "Description": ""
+    },
+    {
+      "Command": "echo",
+      "Target": "Next invoice index -> ${i}",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "endWhile",
+      "Target": "",
+      "Value": "",
+      "Description": ""
+    },
+    {
+      "Command": "echo",
+      "Target": "Done. Processed ${invoiceLinkCount} invoice(s).",
+      "Value": "",
+      "Description": ""
+    }
+  ]
+}
