@@ -56,7 +56,7 @@ function createWindow() {
         { type: 'separator' },
         { role: 'selectAll', enabled: editFlags.canSelectAll }
       ]);
-      menu.popup();
+      menu.popup({ window: mainWindow });
     }
   });
 }
