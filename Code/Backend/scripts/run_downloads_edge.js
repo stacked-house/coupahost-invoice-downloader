@@ -143,7 +143,7 @@ function ensureInvoiceFolder(invoiceName, invoiceDate = '') {
   if (invoiceDate && folderName !== 'Unknown') {
     const normalizedDate = normalizeDate(invoiceDate);
     if (normalizedDate && !folderName.startsWith(normalizedDate)) {
-      folderName = `${normalizedDate} ${folderName}`;
+      folderName = `${normalizedDate} - ${folderName}`;
     }
   } else if (!invoiceDate && folderName !== 'Unknown') {
     // If no date found, just use invoice name as-is (already sanitized)
@@ -292,18 +292,37 @@ async function main() {
   // Store the list URL to return to
   const listUrl = await page.url();
   
-  // Find all invoice links on the page
-  // Looking for invoice links in a table - first column links
-  const invoiceRowXpath = `.//table[contains(@class,'table')]//tbody/tr[.//td[1]//a]`;
+  // Dynamically find the Invoice column by looking for header containing "invoice"
+  let invoiceColumnIndex = null;
+  try {
+    invoiceColumnIndex = await page.evaluate(() => {
+      const headers = Array.from(document.querySelectorAll('table th'));
+      for (let i = 0; i < headers.length; i++) {
+        const headerText = headers[i].textContent?.toLowerCase() || '';
+        if (headerText.includes('invoice')) {
+          return i + 1; // XPath is 1-indexed
+        }
+      }
+      return null;
+    });
+  } catch (e) {
+    // If header detection fails, we'll use fallback
+  }
+  
+  // Build XPath based on whether we found the invoice column
+  let invoiceRowXpath;
+  if (invoiceColumnIndex !== null) {
+    // Use the detected invoice column
+    invoiceRowXpath = `.//table//tbody/tr[.//td[${invoiceColumnIndex}]//a]`;
+    console.log(`Detected Invoice column at position ${invoiceColumnIndex}`);
+  } else {
+    // Fallback: any row with a link
+    invoiceRowXpath = `.//table//tbody/tr[.//td//a]`;
+    console.log('Using fallback: searching all table rows with links');
+  }
+  
   let invoiceRows = await page.$$(`xpath/${invoiceRowXpath}`);
   let invoiceCount = invoiceRows.length;
-  
-  // If no results with table class, try a more generic approach
-  if (invoiceCount === 0) {
-    const altXpath = `.//table//tbody//tr[.//td//a]`;
-    invoiceRows = await page.$$(`xpath/${altXpath}`);
-    invoiceCount = invoiceRows.length;
-  }
   
   if (invoiceCount === 0) {
     console.log('✗ No invoices found on this page');
@@ -342,8 +361,14 @@ async function main() {
           await sleep(2000);
         }
         
-        // Get the invoice link (nth link in first column)
-        const linkXpath = `(.//table//tbody//tr//td[1]//a)[${i}]`;
+        // Get the invoice link (nth row in the invoice column, or first link in row if no column detected)
+        let linkXpath;
+        if (invoiceColumnIndex !== null) {
+          linkXpath = `(.//table//tbody/tr//td[${invoiceColumnIndex}]//a)[${i}]`;
+        } else {
+          // Fallback: get the first link in the nth row
+          linkXpath = `(.//table//tbody/tr[.//td//a])[${i}]//td//a[1]`;
+        }
         const linkElements = await page.$$(`xpath/${linkXpath}`);
         
         if (linkElements.length === 0) {

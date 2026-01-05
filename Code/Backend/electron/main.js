@@ -1,5 +1,5 @@
 
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 let mainWindow;
@@ -42,6 +42,23 @@ function createWindow() {
     },
   });
   mainWindow.loadFile(htmlPath);
+  
+  // Enable right-click context menu for input fields
+  mainWindow.webContents.on('context-menu', (event, params) => {
+    const { editFlags } = params;
+    const { isEditable } = params;
+    
+    if (isEditable) {
+      const menu = Menu.buildFromTemplate([
+        { role: 'cut', enabled: editFlags.canCut },
+        { role: 'copy', enabled: editFlags.canCopy },
+        { role: 'paste', enabled: editFlags.canPaste },
+        { type: 'separator' },
+        { role: 'selectAll', enabled: editFlags.canSelectAll }
+      ]);
+      menu.popup();
+    }
+  });
 }
 
 app.whenReady().then(() => {

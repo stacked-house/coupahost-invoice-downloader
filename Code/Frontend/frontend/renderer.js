@@ -5,7 +5,6 @@ const browserStatus = document.getElementById('browser-status');
 const urlInput = document.getElementById('url');
 const validateBtn = document.getElementById('validate-url');
 const urlStatus = document.getElementById('url-status');
-const downloadType = document.getElementById('download-type');
 const downloadBtn = document.getElementById('download-btn');
 const stopBtn = document.getElementById('stop-btn');
 const refreshBtn = document.getElementById('refresh-btn');
@@ -150,7 +149,7 @@ downloadBtn.addEventListener('click', async () => {
   clearOutput();
   
   const url = urlInput.value.trim();
-  const configFile = downloadType.value;
+  const configFile = 'Download_Invoices_Auto.json';
   
   // Collect selected file types
   const fileTypeCheckboxes = document.querySelectorAll('input[name="filetype"]:checked');
@@ -244,3 +243,11 @@ copyOutputBtn.addEventListener('click', async () => {
 
 // Initialize
 appendOutput('Ready to download invoices...');
+
+// Enable right-click context menu for input fields (cut, copy, paste)
+const inputs = document.querySelectorAll('input[type="text"]');
+inputs.forEach(input => {
+  input.addEventListener('contextmenu', (e) => {
+    e.stopPropagation();
+  });
+});
