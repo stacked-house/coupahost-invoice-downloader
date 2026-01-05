@@ -1,9 +1,10 @@
 
-const { app, BrowserWindow, ipcMain, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, powerSaveBlocker } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 let mainWindow;
 let currentDownloadProcess = null;
+let powerSaveBlockerId = null;
 
 // Determine if we're running in development or packaged mode
 const isDev = !app.isPackaged;
@@ -173,6 +174,11 @@ ipcMain.handle('start-download', async (event, url, script, configFile, fileType
     NODE_PATH: nodeModulesPath
   };
   
+  // Start preventing system sleep
+  if (powerSaveBlockerId === null) {
+    powerSaveBlockerId = powerSaveBlocker.start('prevent-display-sleep');
+  }
+  
   return new Promise((resolve) => {
     const proc = spawn(node, [scriptPath, '--json', jsonPath, '--browserUrl', 'http://127.0.0.1:9222', '--target-url', url, '--file-types', fileTypesArg], { 
       stdio: 'pipe',
@@ -202,6 +208,13 @@ ipcMain.handle('start-download', async (event, url, script, configFile, fileType
     
     proc.on('close', (code) => {
       currentDownloadProcess = null;
+      
+      // Stop preventing system sleep
+      if (powerSaveBlockerId !== null && powerSaveBlocker.isStarted(powerSaveBlockerId)) {
+        powerSaveBlocker.stop(powerSaveBlockerId);
+        powerSaveBlockerId = null;
+      }
+      
       resolve({ success: code === 0, output });
     });
   });
@@ -212,6 +225,13 @@ ipcMain.handle('stop-download', async () => {
     try {
       currentDownloadProcess.kill('SIGTERM');
       currentDownloadProcess = null;
+      
+      // Stop preventing system sleep
+      if (powerSaveBlockerId !== null && powerSaveBlocker.isStarted(powerSaveBlockerId)) {
+        powerSaveBlocker.stop(powerSaveBlockerId);
+        powerSaveBlockerId = null;
+      }
+      
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
