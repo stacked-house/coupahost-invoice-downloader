@@ -480,83 +480,112 @@ async function main() {
       
       // Download each file
       for (let j = 1; j <= fileCount; j++) {
-        const beforeSnapshot = getDownloadSnapshot();
+        const maxRetries = 3;
+        let downloadSuccess = false;
+        let lastError = '';
         
-        // Re-query file links (in case page state changed)
-        const currentFileXpath = `(${fileXpath})[${j}]`;
-        const currentFileLinks = await page.$$(`xpath/${currentFileXpath}`);
-        
-        if (currentFileLinks.length === 0) {
-          console.log(`  Downloading ${j}/${fileCount}... ✗ Link not found`);
-          failedDownloads.push({ invoice: folderName, reason: 'Link not found' });
-          continue;
-        }
-        
-        // Get file name/url for error reporting
-        let fileName = `File ${j}`;
-        try {
-          fileName = await currentFileLinks[0].evaluate(el => {
-            // Try to get filename from href
-            const href = el.href || '';
-            const urlParts = href.split('/');
-            const nameFromUrl = urlParts[urlParts.length - 1]?.split('?')[0] || '';
-            
-            // Try to get filename from text content
-            const textName = el.textContent?.trim() || '';
-            
-            // Prefer text content, fallback to URL
-            return nameFromUrl || textName || `File ${j}`;
-          });
-        } catch (e) {
-          // Use default if we can't get filename
-        }
-        
-        process.stdout.write(`  Downloading ${j}/${fileCount}... `);
-        
-        try {
-          // Try to get the href and use page.evaluate to trigger download
-          const href = await currentFileLinks[0].evaluate(el => el.href);
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          const beforeSnapshot = getDownloadSnapshot();
           
-          if (href) {
-            // Create a temporary download link with download attribute
-            await page.evaluate((url) => {
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = '';
-              a.style.display = 'none';
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-            }, href);
-          } else {
-            // Fallback to regular click
-            await currentFileLinks[0].click();
+          // Re-query file links (in case page state changed)
+          const currentFileXpath = `(${fileXpath})[${j}]`;
+          const currentFileLinks = await page.$$(`xpath/${currentFileXpath}`);
+          
+          if (currentFileLinks.length === 0) {
+            if (attempt === 1) {
+              console.log(`  Downloading ${j}/${fileCount}... ✗ Link not found`);
+            }
+            lastError = 'Link not found';
+            break; // No point retrying if link doesn't exist
           }
-          await sleep(2000);
-        } catch (e) {
-          console.log(`✗ Click failed: ${e.message}`);
-          failedDownloads.push({ invoice: folderName, file: fileName, reason: 'Click failed' });
-          continue;
+          
+          // Get file name/url for error reporting
+          let fileName = `File ${j}`;
+          try {
+            fileName = await currentFileLinks[0].evaluate(el => {
+              // Try to get filename from href
+              const href = el.href || '';
+              const urlParts = href.split('/');
+              const nameFromUrl = urlParts[urlParts.length - 1]?.split('?')[0] || '';
+              
+              // Try to get filename from text content
+              const textName = el.textContent?.trim() || '';
+              
+              // Prefer text content, fallback to URL
+              return nameFromUrl || textName || `File ${j}`;
+            });
+          } catch (e) {
+            // Use default if we can't get filename
+          }
+          
+          if (attempt === 1) {
+            process.stdout.write(`  Downloading ${j}/${fileCount}... `);
+          } else {
+            process.stdout.write(`  Retry ${attempt}/${maxRetries}... `);
+          }
+          
+          try {
+            // Try to get the href and use page.evaluate to trigger download
+            const href = await currentFileLinks[0].evaluate(el => el.href);
+            
+            if (href) {
+              // Create a temporary download link with download attribute
+              await page.evaluate((url) => {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = '';
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+              }, href);
+            } else {
+              // Fallback to regular click
+              await currentFileLinks[0].click();
+            }
+            await sleep(2000);
+          } catch (e) {
+            console.log(`✗ Click failed: ${e.message}`);
+            lastError = 'Click failed';
+            if (attempt < maxRetries) {
+              console.log(`  Waiting 30 seconds before retry...`);
+              await sleep(30000);
+              continue;
+            }
+            break;
+          }
+          
+          // Wait for download
+          const downloadedFile = await waitForNewDownload(beforeSnapshot, 60000);
+          
+          if (downloadedFile) {
+            // Move file to invoice folder
+            const movedFileName = moveToInvoiceFolder(downloadedFile, folderPath);
+            if (movedFileName) {
+              console.log(`✓ ${movedFileName}`);
+              downloadedFiles.push({ folder: folderName, file: movedFileName });
+              totalDownloads++;
+            } else {
+              console.log(`✓ ${downloadedFile} (could not move to folder)`);
+              downloadedFiles.push({ folder: 'Downloads', file: downloadedFile });
+              totalDownloads++;
+            }
+            downloadSuccess = true;
+            break; // Success! Exit retry loop
+          } else {
+            lastError = `Download timeout - ${fileName}`;
+            if (attempt < maxRetries) {
+              console.log(`✗ ${lastError}`);
+              console.log(`  Waiting 30 seconds before retry...`);
+              await sleep(30000);
+            }
+          }
         }
         
-        // Wait for download
-        const downloadedFile = await waitForNewDownload(beforeSnapshot, 60000);
-        
-        if (downloadedFile) {
-          // Move file to invoice folder
-          const movedFileName = moveToInvoiceFolder(downloadedFile, folderPath);
-          if (movedFileName) {
-            console.log(`✓ ${movedFileName}`);
-            downloadedFiles.push({ folder: folderName, file: movedFileName });
-            totalDownloads++;
-          } else {
-            console.log(`✓ ${downloadedFile} (could not move to folder)`);
-            downloadedFiles.push({ folder: 'Downloads', file: downloadedFile });
-            totalDownloads++;
-          }
-        } else {
-          console.log(`✗ Download timeout - ${fileName}`);
-          failedDownloads.push({ invoice: folderName, file: fileName, reason: 'Download timeout' });
+        // If all retries failed, record the failure
+        if (!downloadSuccess) {
+          console.log(`✗ ${lastError} (failed after ${maxRetries} attempts)`);
+          failedDownloads.push({ invoice: folderName, file: fileName, reason: lastError });
         }
         
         // Navigate back to detail page if there are more files and we left
