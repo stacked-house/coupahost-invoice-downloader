@@ -140,12 +140,107 @@ npm install
 
 # Run in development
 npm start
+```
 
-# Build for Mac
-npm run build:mac
+---
 
-# Build for Windows
+## Building & Packaging
+
+### Prerequisites
+- Node.js 16+ installed
+- All dependencies installed (`npm install`)
+
+### Mac Installers
+
+The build process creates two DMG files for Intel and Apple Silicon Macs:
+
+```bash
+cd coupahost-invoice-downloader/Code/Backend/electron
+
+# Build both Mac installers (Intel + ARM64)
+npm run build
+
+# Or build individually
+npm run build:mac      # Builds both architectures
+```
+
+**Output:**
+- `dist/Coupa Invoice Downloader-1.0.0-arm64.dmg` (~245MB) - Apple Silicon (M1/M2/M3)
+- `dist/Coupa Invoice Downloader-1.0.0.dmg` (~250MB) - Intel Mac
+
+**Distribution:**
+Copy both DMG files to your distribution folder. Users double-click the DMG, drag the app to Applications, and run.
+
+### Windows Installer
+
+The Windows build requires a special packaging process to create a clean user experience:
+
+```bash
+cd coupahost-invoice-downloader/Code/Backend/electron
+
+# Build Windows package
 npm run build:win
+```
+
+This creates `dist/win-unpacked/` with all application files. To package for distribution:
+
+**Step 1: Create folder structure**
+```bash
+cd dist
+mkdir -p "Coupa Invoice Downloader"
+mkdir -p "Coupa Invoice Downloader/Application Files"
+```
+
+**Step 2: Copy application files**
+```bash
+cp -R win-unpacked/* "Coupa Invoice Downloader/Application Files/"
+```
+
+**Step 3: Add setup script**
+```bash
+cp ../setup-windows.bat "Coupa Invoice Downloader/RUN ME FIRST - Setup.bat"
+```
+
+**Step 4: Update setup script path**
+Edit `Coupa Invoice Downloader/RUN ME FIRST - Setup.bat` and change line 24 to:
+```batch
+echo oLink.TargetPath = "%~dp0Application Files\Coupa Invoice Downloader.exe" >> %SCRIPT%
+```
+And line 25 to:
+```batch
+echo oLink.WorkingDirectory = "%~dp0Application Files" >> %SCRIPT%
+```
+
+**Step 5: Create final zip**
+```bash
+zip -qr "Coupa Invoice Downloader-1.0.0-win.zip" "Coupa Invoice Downloader"
+```
+
+**Output:**
+- `dist/Coupa Invoice Downloader-1.0.0-win.zip` (~440MB)
+
+**What the setup script does:**
+- Hides all dependency files (.dll, .pak files) to keep folder clean
+- Creates a desktop shortcut pointing to the app
+- Makes the installation folder portable and user-friendly
+
+**Distribution:**
+The zip contains exactly 2 items users see:
+1. `RUN ME FIRST - Setup.bat` - Creates shortcut and hides dependencies
+2. `Application Files/` - Contains all app files
+
+**Complete Build Process (All Platforms):**
+```bash
+# From the electron directory
+npm run build        # Builds Mac Intel + ARM64
+npm run build:win    # Builds Windows
+
+# Then package Windows following steps above
+
+# Copy all installers to distribution folder
+mkdir -p ~/Desktop/CoupaInvoiceDownloader-Installers
+cp dist/*.dmg ~/Desktop/CoupaInvoiceDownloader-Installers/
+cp "dist/Coupa Invoice Downloader-1.0.0-win.zip" ~/Desktop/CoupaInvoiceDownloader-Installers/
 ```
 
 ---
