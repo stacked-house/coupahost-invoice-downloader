@@ -7,8 +7,8 @@ A desktop app for batch downloading invoice attachments from Coupa. Works on Mac
 
 - 📥 Download multiple invoice attachments at once
 - 📁 Automatically organizes files into folders with date-prefixed names (e.g., `2025-06-23 - INV-12345`)
-- � Real-time progress bar showing invoice count (e.g., "Processing: 12 of 90 invoices")
-- 🔄 Retry logic for failed downloads (up to 3 attempts)
+- 📊 Real-time progress bar showing invoice count (e.g., "Processing: 12 of 90 invoices")
+- 🔄 Smart retry logic: Each failed file is automatically retried up to 3 times with 30-second delays
 - 📄 Filter by file type: PDF, Excel, CSV, Word, PNG, JPG, XML
 - 🖥️ Clean, modern interface with selectable console output
 - 🤖 Smart auto-detection of invoice columns and page layouts
@@ -37,7 +37,7 @@ A desktop app for batch downloading invoice attachments from Coupa. Works on Mac
 1. Download `Coupa Invoice Downloader-1.0.0-win.zip`
 2. Right-click → **Extract All** to a folder (e.g., Desktop or Documents)
 3. Open the extracted folder
-4. Double-click **`Setup - Run Me First.bat`**
+4. Double-click **`RUN ME FIRST - Setup.bat`**
    - This hides dependency files and creates a desktop shortcut
 5. Use the **desktop shortcut** to launch the app
 
@@ -86,6 +86,7 @@ Or use the app's **Start Browser** button to launch it automatically.
 - Detect the invoice column regardless of its position in the table
 - Extract invoice dates and create chronologically sortable folders
 - Download all attachments from each invoice
+- Retry failed downloads up to 3 times (with 30-second delays between attempts)
 - Show a visual progress bar tracking invoice completion
 - Prevent your computer from sleeping during the download
 - Show detailed error messages with specific filenames if downloads fail
@@ -109,7 +110,7 @@ Downloads/
 |---------|----------|
 | "Failed to connect to browser" | Make sure the browser is running with `--remote-debugging-port=9222` |
 | "Skipping row - link not found" | The app auto-detects invoice columns; ensure you're on an invoice list page |
-| Downloads timeout | Check your internet connection; the app will retry automatically |
+| Downloads timeout | Check your internet connection; the app retries automatically (up to 3 attempts per file) |
 | No attachments found | Verify that the invoice detail page has downloadable files |
 | Wrong folder names | Dates are extracted from the table; if missing, only invoice number is used |
 | Windows: App won't start | Wait 30-60 seconds on first launch (extracting files) |
