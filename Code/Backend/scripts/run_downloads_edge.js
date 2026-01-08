@@ -155,7 +155,7 @@ const gracefulShutdown = async () => {
   console.log('⏸ Stop requested - finishing current file...');
   
   // Windows needs more time for output to be flushed to console
-  const timeout = process.platform === 'win32' ? 3000 : 1500;
+  const timeout = process.platform === 'win32' ? 5000 : 1500;
   
   // Give it time for current operation to finish and loop to break naturally
   setTimeout(async () => {
