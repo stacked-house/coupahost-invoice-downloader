@@ -47,13 +47,14 @@ function createWindow() {
   // Enable right-click context menu for input fields
   mainWindow.webContents.on('context-menu', (event, params) => {
     const { editFlags } = params;
-    const { isEditable } = params;
+    const { isEditable, selectionText } = params;
     
-    if (isEditable) {
+    // Show context menu for editable fields OR when text is selected
+    if (isEditable || selectionText) {
       const menu = Menu.buildFromTemplate([
-        { role: 'cut', enabled: editFlags.canCut },
+        { role: 'cut', enabled: editFlags.canCut && isEditable },
         { role: 'copy', enabled: editFlags.canCopy },
-        { role: 'paste', enabled: editFlags.canPaste },
+        { role: 'paste', enabled: editFlags.canPaste && isEditable },
         { type: 'separator' },
         { role: 'selectAll', enabled: editFlags.canSelectAll }
       ]);

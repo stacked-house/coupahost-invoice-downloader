@@ -15,7 +15,7 @@ Code/Backend/electron/
 ├── dist/                           # Build output directory
 │   ├── Coupa Invoice Downloader-1.0.0-arm64.dmg
 │   ├── Coupa Invoice Downloader-1.0.0.dmg
-│   ├── Coupa Invoice Downloader-1.0.0-win.zip
+│   ├── CoupaInvoiceDownloader-1.0.0-win.zip
 │   └── win-unpacked/               # Windows build files
 ├── main.js                         # Electron main process
 ├── renderer.js                     # UI logic
@@ -89,19 +89,19 @@ This creates `dist/win-unpacked/` containing:
 
 ### Step 2: Create Packaging Structure
 
-> **⚠️ IMPORTANT:** Clean ALL loose files from dist folder first! The build process may leave files at root level.
+> **⚠️ IMPORTANT:** Use SHORT folder names to avoid Windows 260-character path length limit!
 
 ```bash
 cd dist
-# Remove any previous Windows package AND any loose files
-rm -rf "Coupa Invoice Downloader" "Coupa Invoice Downloader-1.0.0-win.zip"
-mkdir -p "Coupa Invoice Downloader/Application Files"
+# Remove any previous Windows package
+rm -rf "CoupaInvoiceDownloader" "CoupaInvoiceDownloader-1.0.0-win.zip"
+mkdir -p "CoupaInvoiceDownloader/App"
 ```
 
 ### Step 3: Copy Application Files
 
 ```bash
-cp -R win-unpacked/* "Coupa Invoice Downloader/Application Files/"
+cp -R win-unpacked/* "CoupaInvoiceDownloader/App/"
 ```
 
 ### Step 4: Add Setup Script
@@ -109,35 +109,20 @@ cp -R win-unpacked/* "Coupa Invoice Downloader/Application Files/"
 The setup script (`setup-windows.bat`) provides a clean installation experience:
 
 ```bash
-cp ../setup-windows.bat "Coupa Invoice Downloader/RUN ME FIRST - Setup.bat"
+cp ../setup-windows.bat "CoupaInvoiceDownloader/RUN ME FIRST - Setup.bat"
 ```
 
-**Edit the copied setup script** to update paths for the subfolder structure:
+**Automatically update the setup script** to use the shorter folder structure:
 
-Open `"Coupa Invoice Downloader/RUN ME FIRST - Setup.bat"` and modify:
-
-**Line 24:** Change from:
-```batch
-echo oLink.TargetPath = "%~dp0Coupa Invoice Downloader.exe" >> %SCRIPT%
-```
-To:
-```batch
-echo oLink.TargetPath = "%~dp0Application Files\Coupa Invoice Downloader.exe" >> %SCRIPT%
-```
-
-**Line 25:** Change from:
-```batch
-echo oLink.WorkingDirectory = "%~dp0" >> %SCRIPT%
-```
-To:
-```batch
-echo oLink.WorkingDirectory = "%~dp0Application Files" >> %SCRIPT%
+```bash
+sed -i '' 's|%~dp0Coupa Invoice Downloader.exe|%~dp0App\\Coupa Invoice Downloader.exe|' "CoupaInvoiceDownloader/RUN ME FIRST - Setup.bat"
+sed -i '' 's|oLink.WorkingDirectory = "%~dp0"|oLink.WorkingDirectory = "%~dp0App"|' "CoupaInvoiceDownloader/RUN ME FIRST - Setup.bat"
 ```
 
 ### Step 5: Create Final ZIP
 
 ```bash
-zip -qr "Coupa Invoice Downloader-1.0.0-win.zip" "Coupa Invoice Downloader"
+zip -qr "CoupaInvoiceDownloader-1.0.0-win.zip" "CoupaInvoiceDownloader"
 ```
 
 ### Step 6: VERIFY THE ZIP STRUCTURE
@@ -146,14 +131,14 @@ zip -qr "Coupa Invoice Downloader-1.0.0-win.zip" "Coupa Invoice Downloader"
 
 ```bash
 # Extract to temp folder and check structure
-unzip -l "Coupa Invoice Downloader-1.0.0-win.zip" | head -20
+unzip -l "CoupaInvoiceDownloader-1.0.0-win.zip" | head -10
 
 # Should show:
-# Coupa Invoice Downloader/
-# Coupa Invoice Downloader/RUN ME FIRST - Setup.bat
-# Coupa Invoice Downloader/Application Files/
-# Coupa Invoice Downloader/Application Files/Coupa Invoice Downloader.exe
-# ... (all other files inside Application Files/)
+# CoupaInvoiceDownloader/
+# CoupaInvoiceDownloader/RUN ME FIRST - Setup.bat
+# CoupaInvoiceDownloader/App/
+# CoupaInvoiceDownloader/App/Coupa Invoice Downloader.exe
+# ... (all other files inside App/)
 
 # If you see files at root level (outside the parent folder), rebuild!
 ```
@@ -182,10 +167,10 @@ The `setup-windows.bat` script:
 The final ZIP contains exactly 2 visible items:
 
 ```
-Coupa Invoice Downloader-1.0.0-win.zip
-└── Coupa Invoice Downloader/
+CoupaInvoiceDownloader-1.0.0-win.zip
+└── CoupaInvoiceDownloader/
     ├── RUN ME FIRST - Setup.bat          # User clicks this first
-    └── Application Files/                # Contains all app files
+    └── App/                              # Contains all app files
         ├── Coupa Invoice Downloader.exe
         ├── *.dll (hidden after setup)
         ├── *.pak (hidden after setup)
@@ -197,7 +182,7 @@ Coupa Invoice Downloader-1.0.0-win.zip
 
 1. Copy the ZIP to your distribution folder:
    ```bash
-   cp "Coupa Invoice Downloader-1.0.0-win.zip" ~/Desktop/CoupaInvoiceDownloader-Installers/
+   cp "CoupaInvoiceDownloader-1.0.0-win.zip" ~/Desktop/CoupaInvoiceDownloader-Installers/
    ```
 
 2. Users install by:
@@ -207,9 +192,10 @@ Coupa Invoice Downloader-1.0.0-win.zip
 
 ### Output File
 
-- **Coupa Invoice Downloader-1.0.0-win.zip** (~440MB)
-  - Contains setup script + Application Files folder
+- **CoupaInvoiceDownloader-1.0.0-win.zip** (~440MB)
+  - Contains setup script + App folder with all files
   - Setup script creates desktop shortcut
+  - Short folder names avoid Windows path length errors
   - No admin rights required
 
 ---
@@ -230,30 +216,30 @@ npm run build:mac
 # Build Windows package (if not already done)
 npm run build:win
 
-# Package Windows with clean structure (AUTOMATED)
+# Package Windows with SHORT folder names (avoids path length errors)
 cd dist
-rm -rf "Coupa Invoice Downloader" "Coupa Invoice Downloader-1.0.0-win.zip"
-mkdir -p "Coupa Invoice Downloader/Application Files"
-cp -R win-unpacked/* "Coupa Invoice Downloader/Application Files/"
-cp ../setup-windows.bat "Coupa Invoice Downloader/RUN ME FIRST - Setup.bat"
+rm -rf "CoupaInvoiceDownloader" "CoupaInvoiceDownloader-1.0.0-win.zip"
+mkdir -p "CoupaInvoiceDownloader/App"
+cp -R win-unpacked/* "CoupaInvoiceDownloader/App/"
+cp ../setup-windows.bat "CoupaInvoiceDownloader/RUN ME FIRST - Setup.bat"
 
 # Automatically update the setup script paths (no manual editing!)
-sed -i '' 's|%~dp0Coupa Invoice Downloader.exe|%~dp0Application Files\\Coupa Invoice Downloader.exe|' "Coupa Invoice Downloader/RUN ME FIRST - Setup.bat"
-sed -i '' 's|oLink.WorkingDirectory = "%~dp0"|oLink.WorkingDirectory = "%~dp0Application Files"|' "Coupa Invoice Downloader/RUN ME FIRST - Setup.bat"
+sed -i '' 's|%~dp0Coupa Invoice Downloader.exe|%~dp0App\\Coupa Invoice Downloader.exe|' "CoupaInvoiceDownloader/RUN ME FIRST - Setup.bat"
+sed -i '' 's|oLink.WorkingDirectory = "%~dp0"|oLink.WorkingDirectory = "%~dp0App"|' "CoupaInvoiceDownloader/RUN ME FIRST - Setup.bat"
 
 # Create Windows ZIP
-zip -qr "Coupa Invoice Downloader-1.0.0-win.zip" "Coupa Invoice Downloader"
+zip -qr "CoupaInvoiceDownloader-1.0.0-win.zip" "CoupaInvoiceDownloader"
 
 # VERIFY the structure (CRITICAL!)
 echo "\n===== Verifying Windows ZIP structure ====="
-unzip -l "Coupa Invoice Downloader-1.0.0-win.zip" | head -10
+unzip -l "CoupaInvoiceDownloader-1.0.0-win.zip" | head -10
 cd ..
 
 # Copy all installers to distribution folder
 mkdir -p ~/Desktop/CoupaInvoiceDownloader-Installers
 cp dist/Coupa\ Invoice\ Downloader-1.0.0-arm64.dmg ~/Desktop/CoupaInvoiceDownloader-Installers/
 cp dist/Coupa\ Invoice\ Downloader-1.0.0.dmg ~/Desktop/CoupaInvoiceDownloader-Installers/
-cp "dist/Coupa Invoice Downloader-1.0.0-win.zip" ~/Desktop/CoupaInvoiceDownloader-Installers/
+cp "dist/CoupaInvoiceDownloader-1.0.0-win.zip" ~/Desktop/CoupaInvoiceDownloader-Installers/
 
 # Verify files
 ls -lh ~/Desktop/CoupaInvoiceDownloader-Installers/
@@ -269,11 +255,12 @@ ls -lh ~/Desktop/CoupaInvoiceDownloader-Installers/
 
 ## Troubleshooting
 
-### Windows: ZIP contains duplicate files at root level
-- **Cause:** dist folder had loose files from previous builds
-- **Solution:** Always run `rm -rf "Coupa Invoice Downloader" "Coupa Invoice Downloader-1.0.0-win.zip"` in dist folder before packaging
-- **Verification:** Run `unzip -l "Coupa Invoice Downloader-1.0.0-win.zip" | head -20` to verify structure
-- **Expected:** Only "Coupa Invoice Downloader/" folder at root, no loose files
+### Windows: Path too long error (Error 0x80010135)
+- **Cause:** Windows has a 260-character path length limit
+- **Solution:** Use SHORT folder names - "CoupaInvoiceDownloader" not "Coupa Invoice Downloader"
+- **Solution:** Always run `rm -rf "CoupaInvoiceDownloader" "CoupaInvoiceDownloader-1.0.0-win.zip"` before packaging
+- **Verification:** Run `unzip -l "CoupaInvoiceDownloader-1.0.0-win.zip" | head -10` to verify structure
+- **Expected:** Only "CoupaInvoiceDownloader/" folder at root, no loose files
 
 ### Mac: "App can't be opened"
 - User must right-click → Open on first launch
@@ -312,7 +299,7 @@ Update version in `package.json` before building:
 ```
 
 This version number appears in:
-- File names (Coupa Invoice Downloader-1.0.0-win.zip)
+- File names (CoupaInvoiceDownloader-1.0.0-win.zip)
 - App About dialog
 - System properties
 
@@ -339,8 +326,8 @@ Before distributing:
 - [ ] Test on both Intel and Apple Silicon if possible
 
 **Windows:**
-- [ ] ZIP extracts without errors
-- [ ] Contains exactly 2 visible items (setup script + Application Files)
+- [ ] ZIP extracts without path length errors
+- [ ] Contains exactly 2 visible items (RUN ME FIRST - Setup.bat + App folder)
 - [ ] Setup script creates desktop shortcut
 - [ ] Setup script hides dependency files
 - [ ] Shortcut launches app correctly

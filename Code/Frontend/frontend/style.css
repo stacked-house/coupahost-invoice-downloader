@@ -512,6 +512,7 @@ select:focus, input[type="text"]:focus {
   -ms-user-select: text;
   cursor: text;
   pointer-events: auto;
+  -webkit-touch-callout: text;
 }
 
 #output::-webkit-scrollbar {
