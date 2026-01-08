@@ -463,17 +463,27 @@ async function main() {
   
   // Dynamically find the Invoice column by looking for header containing "invoice"
   let invoiceColumnIndex = null;
+  let supplierColumnIndex = null;
   try {
-    invoiceColumnIndex = await page.evaluate(() => {
+    const columnIndices = await page.evaluate(() => {
       const headers = Array.from(document.querySelectorAll('table th'));
+      let invoice = null;
+      let supplier = null;
+      
       for (let i = 0; i < headers.length; i++) {
         const headerText = headers[i].textContent?.toLowerCase() || '';
-        if (headerText.includes('invoice')) {
-          return i + 1; // XPath is 1-indexed
+        if (headerText.includes('invoice') && !invoice) {
+          invoice = i + 1; // XPath is 1-indexed
+        }
+        if (headerText.includes('supplier') && !supplier) {
+          supplier = i + 1; // XPath is 1-indexed
         }
       }
-      return null;
+      
+      return { invoice, supplier };
     });
+    invoiceColumnIndex = columnIndices.invoice;
+    supplierColumnIndex = columnIndices.supplier;
   } catch (e) {
     // If header detection fails, we'll use fallback
   }
@@ -488,6 +498,10 @@ async function main() {
     // Fallback: any row with a link
     invoiceRowXpath = `.//table//tbody/tr[.//td//a]`;
     console.log('Using fallback: searching all table rows with links');
+  }
+  
+  if (supplierColumnIndex !== null) {
+    console.log(`Detected Supplier column at position ${supplierColumnIndex}`);
   }
   
   // Get initial count of invoices
@@ -557,7 +571,7 @@ async function main() {
         let invoiceDate = '';
         let supplierName = '';
         try {
-          const linkInfo = await page.evaluate(el => {
+          const linkInfo = await page.evaluate((el, supplierColIndex) => {
             // Get the invoice link text from the passed element
             const text = el.textContent?.trim() || '';
             
@@ -566,10 +580,16 @@ async function main() {
             let supplier = '';
             const row = el.closest('tr');
             if (row) {
-              // Look for date patterns and supplier in the row cells
               const cells = row.querySelectorAll('td');
-              for (const cell of cells) {
-                const cellText = cell.textContent?.trim() || '';
+              
+              // If we know the supplier column, use it directly
+              if (supplierColIndex !== null && cells[supplierColIndex - 1]) {
+                supplier = cells[supplierColIndex - 1].textContent?.trim() || '';
+              }
+              
+              // Look for date and fallback supplier if not found
+              for (let i = 0; i < cells.length; i++) {
+                const cellText = cells[i].textContent?.trim() || '';
                 
                 // Match date patterns like MM/DD/YYYY, MM/DD/YY, or YYYY-MM-DD
                 if (!date) {
@@ -579,12 +599,11 @@ async function main() {
                   }
                 }
                 
-                // Look for supplier - typically a longer text field that's not a date or number
-                // Skip cells that are dates, invoice numbers, or short codes
+                // Fallback supplier detection if column not detected
                 if (!supplier && cellText.length > 3 && !cellText.match(/^\d+$/) && !cellText.match(/\d{1,2}\/\d{1,2}\/\d{2,4}/)) {
-                  // Avoid the invoice number cell (usually the link we clicked)
-                  if (cell !== el.closest('td')) {
-                    // Check if this looks like a supplier name (has letters and reasonable length)
+                  // Avoid the invoice number cell
+                  if (cells[i] !== el.closest('td')) {
+                    // Check if this looks like a supplier name
                     if (cellText.match(/[a-zA-Z]/) && cellText.length < 100) {
                       supplier = cellText;
                     }
@@ -599,7 +618,7 @@ async function main() {
               date: date,
               supplier: supplier
             };
-          }, linkElements[0]);
+          }, linkElements[0], supplierColumnIndex);
           linkText = linkInfo.text || 'Unknown';
           linkHref = linkInfo.href;
           invoiceDate = linkInfo.date;
