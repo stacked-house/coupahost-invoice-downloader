@@ -82,6 +82,20 @@ const downloadDir = path.join(os.homedir(), 'Downloads');
 const downloadedFiles = [];
 const failedDownloads = [];
 
+// State tracking for graceful shutdown
+let shouldStop = false;
+let currentInvoiceNumber = 0;
+let currentInvoiceId = '';
+let currentInvoiceFileCount = 0;
+let currentInvoiceTotalFiles = 0;
+
+// Handle graceful shutdown on SIGTERM (stop button)
+process.on('SIGTERM', () => {
+  shouldStop = true;
+  console.log('\n');
+  console.log('⏸ Stop requested - finishing current file...');
+});
+
 /**
  * Sanitize a string for use as a folder name
  */
@@ -349,9 +363,17 @@ async function main() {
   
   let totalDownloads = 0;
   let processedInvoices = 0;
+  totalInvoices = invoiceCount; // Track total for stop summary
   
   // Process each invoice
   for (let i = 1; i <= invoiceCount; i++) {
+    // Check if user requested stop
+    if (shouldStop) {
+      console.log('');
+      console.log('⏸ Download stopped by user');
+      break;
+    }
+    
     let retryCount = 0;
     const maxRetries = 3; // Try 4 times total (initial + 3 retries)
     
@@ -431,6 +453,11 @@ async function main() {
         // Create folder for this invoice
         const { folderName, folderPath } = ensureInvoiceFolder(linkText, invoiceDate);
       
+      // Update current state tracking
+      currentInvoiceNumber = i;
+      currentInvoiceId = linkText;
+      processedInvoices++;
+      
       console.log(`Opening invoice ${i}/${invoiceCount}: ${linkText}`);
       console.log(`  📁 Folder: ${folderName}/`);
       
@@ -475,11 +502,22 @@ async function main() {
     
     if (fileCount === 0) {
       console.log(`  No attachments found`);
+      currentInvoiceTotalFiles = 0;
+      currentInvoiceFileCount = 0;
     } else {
       console.log(`  Found ${fileCount} attachment(s)`);
+      currentInvoiceTotalFiles = fileCount;
+      currentInvoiceFileCount = 0;
       
       // Download each file
       for (let j = 1; j <= fileCount; j++) {
+        // Check if user requested stop
+        if (shouldStop) {
+          console.log('');
+          console.log('  ⏸ Stopping at current position...');
+          break;
+        }
+        
         const maxRetries = 3;
         let downloadSuccess = false;
         let lastError = '';
@@ -565,10 +603,12 @@ async function main() {
               console.log(`✓ ${movedFileName}`);
               downloadedFiles.push({ folder: folderName, file: movedFileName });
               totalDownloads++;
+              currentInvoiceFileCount++;
             } else {
               console.log(`✓ ${downloadedFile} (could not move to folder)`);
               downloadedFiles.push({ folder: 'Downloads', file: downloadedFile });
               totalDownloads++;
+              currentInvoiceFileCount++;
             }
             downloadSuccess = true;
             break; // Success! Exit retry loop
@@ -642,41 +682,74 @@ async function main() {
     } // End while retry loop
   }
   
-  // Print summary
-  console.log('========================================');
-  console.log('Download Complete!');
-  console.log(`Processed ${processedInvoices} invoice(s)`);
-  console.log(`Downloaded ${totalDownloads} file(s)`);
-  
-  if (failedDownloads.length > 0) {
+  // Print summary (wrapped in try-catch to ensure it always runs)
+  try {
     console.log('');
-    console.log(`Failed Downloads: ${failedDownloads.length}`);
+    console.log('========================================');
     
-    // Group failures by invoice
-    const failuresByInvoice = {};
-    failedDownloads.forEach(item => {
-      if (!failuresByInvoice[item.invoice]) {
-        failuresByInvoice[item.invoice] = [];
+    if (shouldStop) {
+      console.log('⏸ Download Stopped');
+      console.log('');
+      console.log('📍 Stopped at:');
+      console.log(`   Invoice: ${currentInvoiceId} (${currentInvoiceNumber}/${totalInvoices})`);
+      if (currentInvoiceTotalFiles > 0) {
+        console.log(`   Progress: Downloaded ${currentInvoiceFileCount} of ${currentInvoiceTotalFiles} file(s) from this invoice`);
       }
-      const detail = item.file ? `${item.reason} - ${item.file}` : item.reason;
-      failuresByInvoice[item.invoice].push(detail);
-    });
-    
-    // Display grouped by invoice
-    for (const [invoice, reasons] of Object.entries(failuresByInvoice)) {
-      console.log(`  📁 ${invoice}/`);
-      reasons.forEach(reason => {
-        console.log(`     └─ ${reason}`);
-      });
+      console.log('');
+    } else {
+      console.log('✓ Download Complete!');
+      console.log('');
     }
-  } else {
+    
+    console.log('📊 Summary:');
+    console.log(`   Fully Processed: ${processedInvoices - (shouldStop && currentInvoiceFileCount < currentInvoiceTotalFiles ? 1 : 0)} invoice(s)`);
+    console.log(`   Total Files Downloaded: ${totalDownloads} file(s)`);
+    
+    if (failedDownloads.length > 0) {
+      console.log('');
+      console.log(`⚠ Failed Downloads: ${failedDownloads.length}`);
+      
+      // Group failures by invoice
+      const failuresByInvoice = {};
+      failedDownloads.forEach(item => {
+        if (!failuresByInvoice[item.invoice]) {
+          failuresByInvoice[item.invoice] = [];
+        }
+        const detail = item.file ? `${item.reason} - ${item.file}` : item.reason;
+        failuresByInvoice[item.invoice].push(detail);
+      });
+      
+      // Display grouped by invoice
+      for (const [invoice, reasons] of Object.entries(failuresByInvoice)) {
+        console.log(`  📁 ${invoice}/`);
+        reasons.forEach(reason => {
+          console.log(`     └─ ${reason}`);
+        });
+      }
+    } else {
+      console.log(`   Failed Downloads: 0`);
+    }
+    
+    console.log('========================================');
+  } catch (summaryErr) {
+    // Ensure we show at least basic stats even if summary formatting fails
     console.log('');
-    console.log('Failed Downloads: 0');
+    console.log('========================================');
+    if (shouldStop) {
+      console.log('⏸ Download Stopped');
+    } else {
+      console.log('✓ Download Complete!');
+    }
+    console.log(`Stats: ${processedInvoices} invoices, ${totalDownloads} files, ${failedDownloads.length} failures`);
+    console.log('========================================');
   }
   
-  console.log('========================================');
-  
-  await browser.disconnect();
+  // Disconnect browser (wrapped in try-catch to avoid errors if already disconnected)
+  try {
+    await browser.disconnect();
+  } catch (disconnectErr) {
+    // Browser may have already disconnected
+  }
 }
 
 // Run

@@ -69,6 +69,8 @@ electron-builder automatically:
 
 ## Windows Packaging (Cross-platform)
 
+> **⚠️ CRITICAL:** Always clean the dist folder before packaging Windows to avoid duplicate files in the ZIP!
+
 Windows packaging requires additional steps to create a clean user experience.
 
 ### Step 1: Build Windows Files
@@ -87,9 +89,12 @@ This creates `dist/win-unpacked/` containing:
 
 ### Step 2: Create Packaging Structure
 
+> **⚠️ IMPORTANT:** Clean ALL loose files from dist folder first! The build process may leave files at root level.
+
 ```bash
 cd dist
-rm -rf "Coupa Invoice Downloader"  # Clean previous build
+# Remove any previous Windows package AND any loose files
+rm -rf "Coupa Invoice Downloader" "Coupa Invoice Downloader-1.0.0-win.zip"
 mkdir -p "Coupa Invoice Downloader/Application Files"
 ```
 
@@ -133,6 +138,24 @@ echo oLink.WorkingDirectory = "%~dp0Application Files" >> %SCRIPT%
 
 ```bash
 zip -qr "Coupa Invoice Downloader-1.0.0-win.zip" "Coupa Invoice Downloader"
+```
+
+### Step 6: VERIFY THE ZIP STRUCTURE
+
+> **⚠️ CRITICAL VERIFICATION STEP:** Always verify the zip contains ONLY the parent folder!
+
+```bash
+# Extract to temp folder and check structure
+unzip -l "Coupa Invoice Downloader-1.0.0-win.zip" | head -20
+
+# Should show:
+# Coupa Invoice Downloader/
+# Coupa Invoice Downloader/RUN ME FIRST - Setup.bat
+# Coupa Invoice Downloader/Application Files/
+# Coupa Invoice Downloader/Application Files/Coupa Invoice Downloader.exe
+# ... (all other files inside Application Files/)
+
+# If you see files at root level (outside the parent folder), rebuild!
 ```
 
 ### What the Setup Script Does
@@ -193,29 +216,37 @@ Coupa Invoice Downloader-1.0.0-win.zip
 
 ## Complete Build Workflow
 
-### Build All Platforms
+### Build All Platforms (Automated Script)
+
+> **✅ RECOMMENDED:** Use this complete automated workflow to avoid manual errors.
 
 ```bash
 # Navigate to electron directory
 cd /path/to/coupahost-invoice-downloader/Code/Backend/electron
 
 # Build Mac installers (both architectures)
-npm run build
+npm run build:mac
 
-# Build Windows package
+# Build Windows package (if not already done)
 npm run build:win
 
-# Package Windows with clean structure
+# Package Windows with clean structure (AUTOMATED)
 cd dist
-rm -rf "Coupa Invoice Downloader"
+rm -rf "Coupa Invoice Downloader" "Coupa Invoice Downloader-1.0.0-win.zip"
 mkdir -p "Coupa Invoice Downloader/Application Files"
 cp -R win-unpacked/* "Coupa Invoice Downloader/Application Files/"
 cp ../setup-windows.bat "Coupa Invoice Downloader/RUN ME FIRST - Setup.bat"
 
-# Edit the setup script paths (lines 24-25) as described above
+# Automatically update the setup script paths (no manual editing!)
+sed -i '' 's|%~dp0Coupa Invoice Downloader.exe|%~dp0Application Files\\Coupa Invoice Downloader.exe|' "Coupa Invoice Downloader/RUN ME FIRST - Setup.bat"
+sed -i '' 's|oLink.WorkingDirectory = "%~dp0"|oLink.WorkingDirectory = "%~dp0Application Files"|' "Coupa Invoice Downloader/RUN ME FIRST - Setup.bat"
 
 # Create Windows ZIP
 zip -qr "Coupa Invoice Downloader-1.0.0-win.zip" "Coupa Invoice Downloader"
+
+# VERIFY the structure (CRITICAL!)
+echo "\n===== Verifying Windows ZIP structure ====="
+unzip -l "Coupa Invoice Downloader-1.0.0-win.zip" | head -10
 cd ..
 
 # Copy all installers to distribution folder
@@ -237,6 +268,12 @@ ls -lh ~/Desktop/CoupaInvoiceDownloader-Installers/
 ---
 
 ## Troubleshooting
+
+### Windows: ZIP contains duplicate files at root level
+- **Cause:** dist folder had loose files from previous builds
+- **Solution:** Always run `rm -rf "Coupa Invoice Downloader" "Coupa Invoice Downloader-1.0.0-win.zip"` in dist folder before packaging
+- **Verification:** Run `unzip -l "Coupa Invoice Downloader-1.0.0-win.zip" | head -20` to verify structure
+- **Expected:** Only "Coupa Invoice Downloader/" folder at root, no loose files
 
 ### Mac: "App can't be opened"
 - User must right-click → Open on first launch
