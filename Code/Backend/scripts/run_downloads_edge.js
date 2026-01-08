@@ -456,7 +456,6 @@ async function main() {
       // Update current state tracking
       currentInvoiceNumber = i;
       currentInvoiceId = linkText;
-      processedInvoices++;
       
       console.log(`Opening invoice ${i}/${invoiceCount}: ${linkText}`);
       console.log(`  📁 Folder: ${folderName}/`);
