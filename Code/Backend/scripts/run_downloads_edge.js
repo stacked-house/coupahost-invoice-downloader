@@ -58,18 +58,8 @@ if (!jsonPath) {
 function buildFileTypeXpath(types) {
   // Build an XPath that matches any of the selected file extensions
   const conditions = types.map(ext => {
-    // Handle variations (e.g., xlsx also matches xls)
-    if (ext === 'xlsx') {
-      return `contains(@href,'.xlsx') or contains(@href,'.xls')`;
-    } else if (ext === 'docx') {
-      return `contains(@href,'.docx') or contains(@href,'.doc')`;
-    } else if (ext === 'jpg') {
-      return `contains(@href,'.jpg') or contains(@href,'.jpeg')`;
-    } else if (ext === 'xml') {
-      return `contains(@href,'.xml')`;
-    } else {
-      return `contains(@href,'.${ext}')`;
-    }
+    // Each extension is now handled individually
+    return `contains(@href,'.${ext}')`;
   });
   
   return `.//a[${conditions.join(' or ')}]`;
@@ -88,12 +78,96 @@ let currentInvoiceNumber = 0;
 let currentInvoiceId = '';
 let currentInvoiceFileCount = 0;
 let currentInvoiceTotalFiles = 0;
+let processedInvoices = 0;
+let totalInvoices = 0;
+let totalDownloads = 0;
+let activeBrowser = null;
+
+/**
+ * Print download summary
+ */
+function printSummary() {
+  try {
+    console.log('');
+    console.log('========================================');
+    
+    if (shouldStop) {
+      console.log('⏸ Download Stopped');
+      console.log('');
+      console.log('📍 Stopped at:');
+      console.log(`   Invoice: ${currentInvoiceId} (${currentInvoiceNumber}/${totalInvoices})`);
+      if (currentInvoiceTotalFiles > 0) {
+        console.log(`   Progress: Downloaded ${currentInvoiceFileCount} of ${currentInvoiceTotalFiles} file(s) from this invoice`);
+      }
+      console.log('');
+    } else {
+      console.log('✓ Download Complete!');
+      console.log('');
+    }
+    
+    console.log('📊 Summary:');
+    console.log(`   Fully Processed: ${processedInvoices - (shouldStop && currentInvoiceFileCount < currentInvoiceTotalFiles ? 1 : 0)} invoice(s)`);
+    console.log(`   Total Files Downloaded: ${totalDownloads} file(s)`);
+    
+    if (failedDownloads.length > 0) {
+      console.log('');
+      console.log(`⚠ Failed Downloads: ${failedDownloads.length}`);
+      
+      // Group failures by invoice
+      const failuresByInvoice = {};
+      failedDownloads.forEach(item => {
+        if (!failuresByInvoice[item.invoice]) {
+          failuresByInvoice[item.invoice] = [];
+        }
+        const detail = item.file ? `${item.reason} - ${item.file}` : item.reason;
+        failuresByInvoice[item.invoice].push(detail);
+      });
+      
+      // Display grouped by invoice
+      for (const [invoice, reasons] of Object.entries(failuresByInvoice)) {
+        console.log(`  📁 ${invoice}/`);
+        reasons.forEach(reason => {
+          console.log(`     └─ ${reason}`);
+        });
+      }
+    } else {
+      console.log(`   Failed Downloads: 0`);
+    }
+    
+    console.log('========================================');
+  } catch (summaryErr) {
+    console.log('');
+    console.log('========================================');
+    if (shouldStop) {
+      console.log('⏸ Download Stopped');
+    } else {
+      console.log('✓ Download Complete!');
+    }
+    console.log(`Stats: ${processedInvoices} invoices, ${totalDownloads} files, ${failedDownloads.length} failures`);
+    console.log('========================================');
+  }
+}
 
 // Handle graceful shutdown on SIGTERM (stop button)
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   shouldStop = true;
   console.log('\n');
   console.log('⏸ Stop requested - finishing current file...');
+  
+  // Give it 10 seconds for current operation to finish and loop to break naturally
+  // If process is still running after 10s, force summary and exit
+  setTimeout(async () => {
+    printSummary();
+    
+    // Disconnect browser
+    if (activeBrowser) {
+      try {
+        await activeBrowser.disconnect();
+      } catch (e) {}
+    }
+    
+    process.exit(0);
+  }, 10000); // 10 second grace period for clean shutdown
 });
 
 /**
@@ -144,7 +218,7 @@ function normalizeDate(dateStr) {
 /**
  * Create invoice folder if it doesn't exist
  */
-function ensureInvoiceFolder(invoiceName, invoiceDate = '') {
+function ensureInvoiceFolder(invoiceName, invoiceDate = '', supplierName = '') {
   let folderName = sanitizeFolderName(invoiceName);
   
   // If we couldn't extract the invoice name, it will be 'Unknown'
@@ -153,14 +227,41 @@ function ensureInvoiceFolder(invoiceName, invoiceDate = '') {
     folderName = `Unknown_${Date.now()}`;
   }
   
-  // Prepend date if available and not already in the name
-  if (invoiceDate && folderName !== 'Unknown') {
+  // Build folder name: date - Supplier - invoice #
+  const parts = [];
+  
+  if (invoiceDate) {
     const normalizedDate = normalizeDate(invoiceDate);
-    if (normalizedDate && !folderName.startsWith(normalizedDate)) {
-      folderName = `${normalizedDate} - ${folderName}`;
+    if (normalizedDate) {
+      parts.push(normalizedDate);
     }
-  } else if (!invoiceDate && folderName !== 'Unknown') {
-    // If no date found, just use invoice name as-is (already sanitized)
+  }
+  
+  if (supplierName) {
+    let sanitizedSupplier = sanitizeFolderName(supplierName);
+    if (sanitizedSupplier && sanitizedSupplier !== 'Unknown') {
+      // Truncate supplier name to 80 characters max to avoid path length issues
+      if (sanitizedSupplier.length > 80) {
+        sanitizedSupplier = sanitizedSupplier.substring(0, 80).trim();
+      }
+      parts.push(sanitizedSupplier);
+    }
+  }
+  
+  if (folderName !== 'Unknown') {
+    parts.push(folderName);
+  }
+  
+  if (parts.length > 0) {
+    folderName = parts.join(' - ');
+  } else {
+    folderName = `Unknown_${Date.now()}`;
+  }
+  
+  // Final safety check - ensure total folder name doesn't exceed 200 chars
+  // This leaves room for the full path (downloadDir + folderName + filename)
+  if (folderName.length > 200) {
+    folderName = folderName.substring(0, 200).trim();
   }
   
   const folderPath = path.join(downloadDir, folderName);
@@ -272,6 +373,7 @@ async function main() {
       browserURL: browserUrl,
       defaultViewport: null
     });
+    activeBrowser = browser; // Store for SIGTERM handler
   } catch (err) {
     console.log('✗ Failed to connect to browser');
     console.log('  Make sure Edge is running with remote debugging enabled');
@@ -361,8 +463,6 @@ async function main() {
   console.log(`Found ${invoiceCount} invoice(s) to process`);
   console.log('');
   
-  let totalDownloads = 0;
-  let processedInvoices = 0;
   totalInvoices = invoiceCount; // Track total for stop summary
   
   // Process each invoice
@@ -415,24 +515,40 @@ async function main() {
         let linkText = 'Unknown';
         let linkHref = '';
         let invoiceDate = '';
+        let supplierName = '';
         try {
           const linkInfo = await page.evaluate(el => {
             // Get the invoice link text from the passed element
             const text = el.textContent?.trim() || '';
             
-            // Try to find the date from the same row
+            // Try to find the date and supplier from the same row
             let date = '';
+            let supplier = '';
             const row = el.closest('tr');
             if (row) {
-              // Look for date patterns in the row cells
+              // Look for date patterns and supplier in the row cells
               const cells = row.querySelectorAll('td');
               for (const cell of cells) {
                 const cellText = cell.textContent?.trim() || '';
+                
                 // Match date patterns like MM/DD/YYYY, MM/DD/YY, or YYYY-MM-DD
-                const dateMatch = cellText.match(/(\d{1,2}\/\d{1,2}\/\d{2,4}|\d{4}-\d{2}-\d{2})/);
-                if (dateMatch) {
-                  date = dateMatch[0];
-                  break;
+                if (!date) {
+                  const dateMatch = cellText.match(/(\d{1,2}\/\d{1,2}\/\d{2,4}|\d{4}-\d{2}-\d{2})/);
+                  if (dateMatch) {
+                    date = dateMatch[0];
+                  }
+                }
+                
+                // Look for supplier - typically a longer text field that's not a date or number
+                // Skip cells that are dates, invoice numbers, or short codes
+                if (!supplier && cellText.length > 3 && !cellText.match(/^\d+$/) && !cellText.match(/\d{1,2}\/\d{1,2}\/\d{2,4}/)) {
+                  // Avoid the invoice number cell (usually the link we clicked)
+                  if (cell !== el.closest('td')) {
+                    // Check if this looks like a supplier name (has letters and reasonable length)
+                    if (cellText.match(/[a-zA-Z]/) && cellText.length < 100) {
+                      supplier = cellText;
+                    }
+                  }
                 }
               }
             }
@@ -440,18 +556,20 @@ async function main() {
             return {
               text: text,
               href: el.href || '',
-              date: date
+              date: date,
+              supplier: supplier
             };
           }, linkElements[0]);
           linkText = linkInfo.text || 'Unknown';
           linkHref = linkInfo.href;
           invoiceDate = linkInfo.date;
+          supplierName = linkInfo.supplier;
         } catch (e) {
           // If we can't get info, try to continue anyway
         }
         
         // Create folder for this invoice
-        const { folderName, folderPath } = ensureInvoiceFolder(linkText, invoiceDate);
+        const { folderName, folderPath } = ensureInvoiceFolder(linkText, invoiceDate, supplierName);
       
       // Update current state tracking
       currentInvoiceNumber = i;
@@ -681,67 +799,8 @@ async function main() {
     } // End while retry loop
   }
   
-  // Print summary (wrapped in try-catch to ensure it always runs)
-  try {
-    console.log('');
-    console.log('========================================');
-    
-    if (shouldStop) {
-      console.log('⏸ Download Stopped');
-      console.log('');
-      console.log('📍 Stopped at:');
-      console.log(`   Invoice: ${currentInvoiceId} (${currentInvoiceNumber}/${totalInvoices})`);
-      if (currentInvoiceTotalFiles > 0) {
-        console.log(`   Progress: Downloaded ${currentInvoiceFileCount} of ${currentInvoiceTotalFiles} file(s) from this invoice`);
-      }
-      console.log('');
-    } else {
-      console.log('✓ Download Complete!');
-      console.log('');
-    }
-    
-    console.log('📊 Summary:');
-    console.log(`   Fully Processed: ${processedInvoices - (shouldStop && currentInvoiceFileCount < currentInvoiceTotalFiles ? 1 : 0)} invoice(s)`);
-    console.log(`   Total Files Downloaded: ${totalDownloads} file(s)`);
-    
-    if (failedDownloads.length > 0) {
-      console.log('');
-      console.log(`⚠ Failed Downloads: ${failedDownloads.length}`);
-      
-      // Group failures by invoice
-      const failuresByInvoice = {};
-      failedDownloads.forEach(item => {
-        if (!failuresByInvoice[item.invoice]) {
-          failuresByInvoice[item.invoice] = [];
-        }
-        const detail = item.file ? `${item.reason} - ${item.file}` : item.reason;
-        failuresByInvoice[item.invoice].push(detail);
-      });
-      
-      // Display grouped by invoice
-      for (const [invoice, reasons] of Object.entries(failuresByInvoice)) {
-        console.log(`  📁 ${invoice}/`);
-        reasons.forEach(reason => {
-          console.log(`     └─ ${reason}`);
-        });
-      }
-    } else {
-      console.log(`   Failed Downloads: 0`);
-    }
-    
-    console.log('========================================');
-  } catch (summaryErr) {
-    // Ensure we show at least basic stats even if summary formatting fails
-    console.log('');
-    console.log('========================================');
-    if (shouldStop) {
-      console.log('⏸ Download Stopped');
-    } else {
-      console.log('✓ Download Complete!');
-    }
-    console.log(`Stats: ${processedInvoices} invoices, ${totalDownloads} files, ${failedDownloads.length} failures`);
-    console.log('========================================');
-  }
+  // Print summary
+  printSummary();
   
   // Disconnect browser (wrapped in try-catch to avoid errors if already disconnected)
   try {

@@ -6,18 +6,21 @@ A desktop app for batch downloading invoice attachments from Coupa. Works on Mac
 ## Features
 
 - 📥 Download multiple invoice attachments at once
-- 📁 Automatically organizes files into folders with date-prefixed names (e.g., `2025-06-23 - INV-12345`)
+- 📁 Automatically organizes files by date, supplier, and invoice number (e.g., `2025-06-23 - Acme Corp - INV-12345`)
 - 📊 Real-time progress bar showing invoice count (e.g., "Processing: 12 of 90 invoices")
 - 🔄 Smart retry logic: Each failed file is automatically retried up to 3 times with 30-second delays
-- 📄 Filter by file type: PDF, Excel, CSV, Word, PNG, JPG, XML
+- 📄 Filter by 27 file types: PDF, Excel (xlsx/xls/xlsm), Word (docx/doc), PowerPoint (pptx/ppt), CSV, TXT, XML, JSON, HTML, ZIP, Images (JPG/JPEG/PNG/GIF/BMP/TIFF/TIF), Email (EML/MSG)
+- 🎯 Collapsible file type selector with Select All/Deselect All toggle
 - 🖥️ Clean, modern interface with selectable console output
-- 🤖 Smart auto-detection of invoice columns and page layouts
+- 🤖 Smart auto-detection of invoice columns, suppliers, and page layouts
 - 💤 Prevents system sleep during downloads (keeps screen awake)
 - 📝 Detailed error reporting with specific filenames for timeouts
 - 📋 Copy/paste support with right-click context menus
 - 🔄 Automatic page refresh to ensure accurate invoice counts
+- ⏸️ Stop button with detailed summary report showing current position
 - 📊 Concise summary with failed download tracking
 - 🔒 Works without admin rights
+- 🛡️ Path length protection (handles long supplier names for Windows compatibility)
 
 ---
 
@@ -78,13 +81,13 @@ Or use the app's **Start Browser** button to launch it automatically.
 1. Open the **Coupa Invoice Downloader** app
 2. Click **Check Browser** to connect to Edge or Chrome
 3. Paste the Coupa invoice list URL and click **Validate**
-4. Select the file types you want to download (PDF, Excel, etc.)
+4. Select the file types you want to download (all 27 types selected by default - click the dropdown to customize)
 5. Click **Start Download**
 
 **The app will automatically:**
 - Reload the page to ensure accurate invoice counts
-- Detect the invoice column regardless of its position in the table
-- Extract invoice dates and create chronologically sortable folders
+- Detect the invoice column and supplier information regardless of position in the table
+- Extract invoice dates and suppliers to create folders like: `2025-06-23 - Acme Corp - INV-12345`
 - Download all attachments from each invoice
 - Retry failed downloads up to 3 times (with 30-second delays between attempts)
 - Show a visual progress bar tracking invoice completion
@@ -92,13 +95,23 @@ Or use the app's **Start Browser** button to launch it automatically.
 - Show detailed error messages with specific filenames if downloads fail
 - Display a summary with failed downloads (if any)
 
-Files are saved to your Downloads folder in date-prefixed folders like:
+**Stop Mid-Download:**
+- Click the **Stop** button during download to gracefully halt the process
+- You'll receive a detailed report showing:
+  - Which invoice it stopped on (e.g., "Invoice INV-12345 (5/90)")
+  - Files downloaded from the current invoice (e.g., "Downloaded 3 of 7 files")
+  - Total invoices fully processed
+  - Total files downloaded
+  - Any failed downloads
+
+Files are saved to your Downloads folder in organized folders like:
 ```
 Downloads/
-├── 2025-06-23 - INV-12345/
+├── 2025-06-23 - Acme Corporation - INV-12345/
 │   ├── invoice.pdf
 │   └── receipt.xlsx
-├── 2025-06-24 - INV-12346/
+├── 2025-06-24 - Widget Inc - INV-12346/
+│   └── contract.pdf
 │   └── contract.pdf
 ```
 
@@ -120,11 +133,15 @@ Downloads/
 - Works with both "Invoices" and "Invoice Lines" pages automatically
 - Right-click in any input field to access copy/paste menu
 - The invoice column can be in any position - the app finds it automatically
+- Supplier names are extracted from the table row and included in folder names
+- Long supplier names are automatically truncated to avoid Windows path length issues
+- All 27 file types are selected by default - click the dropdown to customize
 - Failed downloads show specific filenames and reasons at the end
 - You can select and copy text from the console output
 - The system will stay awake during downloads - no need to keep your screen active
 - Progress bar updates in real-time as each invoice is processed
 - Page refreshes automatically to get accurate counts when switching date filters
+- Use the Stop button to gracefully halt downloads and get a detailed summary report
 
 ---
 

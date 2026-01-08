@@ -83,44 +83,158 @@
         </div>
         <div class="step-content">
           <div class="file-types-section">
-            <label class="file-types-label">File Types:</label>
-            <div class="file-types-grid">
-              <label class="file-type-checkbox">
-                <input type="checkbox" name="filetype" value="pdf" checked>
-                <span class="checkmark"></span>
-                <span class="file-ext">PDF</span>
-              </label>
-              <label class="file-type-checkbox">
-                <input type="checkbox" name="filetype" value="xlsx" checked>
-                <span class="checkmark"></span>
-                <span class="file-ext">Excel</span>
-              </label>
-              <label class="file-type-checkbox">
-                <input type="checkbox" name="filetype" value="csv">
-                <span class="checkmark"></span>
-                <span class="file-ext">CSV</span>
-              </label>
-              <label class="file-type-checkbox">
-                <input type="checkbox" name="filetype" value="docx">
-                <span class="checkmark"></span>
-                <span class="file-ext">Word</span>
-              </label>
-              <label class="file-type-checkbox">
-                <input type="checkbox" name="filetype" value="png">
-                <span class="checkmark"></span>
-                <span class="file-ext">PNG</span>
-              </label>
-              <label class="file-type-checkbox">
-                <input type="checkbox" name="filetype" value="jpg">
-                <span class="checkmark"></span>
-                <span class="file-ext">JPG</span>
-              </label>
-              <label class="file-type-checkbox">
-                <input type="checkbox" name="filetype" value="xml">
-                <span class="checkmark"></span>
-                <span class="file-ext">XML</span>
-              </label>
+            <div class="file-types-header">
+              <label class="file-types-label">File Types:</label>
+              <button id="select-all-btn" class="btn-select-all">Deselect All</button>
             </div>
+            <details class="file-types-dropdown" open>
+              <summary class="file-types-summary">
+                <span id="selected-count">All file types selected (27)</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </summary>
+              <div class="file-types-grid">
+                <!-- Documents -->
+                <label class="file-type-checkbox">
+                  <input type="checkbox" name="filetype" value="pdf" checked>
+                  <span class="checkmark"></span>
+                  <span class="file-ext">.pdf</span>
+                </label>
+                <label class="file-type-checkbox">
+                  <input type="checkbox" name="filetype" value="docx" checked>
+                  <span class="checkmark"></span>
+                  <span class="file-ext">.docx</span>
+                </label>
+                <label class="file-type-checkbox">
+                  <input type="checkbox" name="filetype" value="doc" checked>
+                  <span class="checkmark"></span>
+                  <span class="file-ext">.doc</span>
+                </label>
+                <label class="file-type-checkbox">
+                  <input type="checkbox" name="filetype" value="txt" checked>
+                  <span class="checkmark"></span>
+                  <span class="file-ext">.txt</span>
+                </label>
+                
+                <!-- Spreadsheets -->
+                <label class="file-type-checkbox">
+                  <input type="checkbox" name="filetype" value="xlsx" checked>
+                  <span class="checkmark"></span>
+                  <span class="file-ext">.xlsx</span>
+                </label>
+                <label class="file-type-checkbox">
+                  <input type="checkbox" name="filetype" value="xls" checked>
+                  <span class="checkmark"></span>
+                  <span class="file-ext">.xls</span>
+                </label>
+                <label class="file-type-checkbox">
+                  <input type="checkbox" name="filetype" value="xlsm" checked>
+                  <span class="checkmark"></span>
+                  <span class="file-ext">.xlsm</span>
+                </label>
+                <label class="file-type-checkbox">
+                  <input type="checkbox" name="filetype" value="csv" checked>
+                  <span class="checkmark"></span>
+                  <span class="file-ext">.csv</span>
+                </label>
+                
+                <!-- Presentations -->
+                <label class="file-type-checkbox">
+                  <input type="checkbox" name="filetype" value="pptx" checked>
+                  <span class="checkmark"></span>
+                  <span class="file-ext">.pptx</span>
+                </label>
+                <label class="file-type-checkbox">
+                  <input type="checkbox" name="filetype" value="ppt" checked>
+                  <span class="checkmark"></span>
+                  <span class="file-ext">.ppt</span>
+                </label>
+                
+                <!-- Images -->
+                <label class="file-type-checkbox">
+                  <input type="checkbox" name="filetype" value="jpg" checked>
+                  <span class="checkmark"></span>
+                  <span class="file-ext">.jpg</span>
+                </label>
+                <label class="file-type-checkbox">
+                  <input type="checkbox" name="filetype" value="jpeg" checked>
+                  <span class="checkmark"></span>
+                  <span class="file-ext">.jpeg</span>
+                </label>
+                <label class="file-type-checkbox">
+                  <input type="checkbox" name="filetype" value="png" checked>
+                  <span class="checkmark"></span>
+                  <span class="file-ext">.png</span>
+                </label>
+                <label class="file-type-checkbox">
+                  <input type="checkbox" name="filetype" value="gif" checked>
+                  <span class="checkmark"></span>
+                  <span class="file-ext">.gif</span>
+                </label>
+                <label class="file-type-checkbox">
+                  <input type="checkbox" name="filetype" value="bmp" checked>
+                  <span class="checkmark"></span>
+                  <span class="file-ext">.bmp</span>
+                </label>
+                <label class="file-type-checkbox">
+                  <input type="checkbox" name="filetype" value="tiff" checked>
+                  <span class="checkmark"></span>
+                  <span class="file-ext">.tiff</span>
+                </label>
+                <label class="file-type-checkbox">
+                  <input type="checkbox" name="filetype" value="tif" checked>
+                  <span class="checkmark"></span>
+                  <span class="file-ext">.tif</span>
+                </label>
+                
+                <!-- Email -->
+                <label class="file-type-checkbox">
+                  <input type="checkbox" name="filetype" value="eml" checked>
+                  <span class="checkmark"></span>
+                  <span class="file-ext">.eml</span>
+                </label>
+                <label class="file-type-checkbox">
+                  <input type="checkbox" name="filetype" value="email" checked>
+                  <span class="checkmark"></span>
+                  <span class="file-ext">.email</span>
+                </label>
+                <label class="file-type-checkbox">
+                  <input type="checkbox" name="filetype" value="msg" checked>
+                  <span class="checkmark"></span>
+                  <span class="file-ext">.msg</span>
+                </label>
+                
+                <!-- Web & Data -->
+                <label class="file-type-checkbox">
+                  <input type="checkbox" name="filetype" value="html" checked>
+                  <span class="checkmark"></span>
+                  <span class="file-ext">.html</span>
+                </label>
+                <label class="file-type-checkbox">
+                  <input type="checkbox" name="filetype" value="htm" checked>
+                  <span class="checkmark"></span>
+                  <span class="file-ext">.htm</span>
+                </label>
+                <label class="file-type-checkbox">
+                  <input type="checkbox" name="filetype" value="xml" checked>
+                  <span class="checkmark"></span>
+                  <span class="file-ext">.xml</span>
+                </label>
+                <label class="file-type-checkbox">
+                  <input type="checkbox" name="filetype" value="json" checked>
+                  <span class="checkmark"></span>
+                  <span class="file-ext">.json</span>
+                </label>
+                
+                <!-- Archives -->
+                <label class="file-type-checkbox">
+                  <input type="checkbox" name="filetype" value="zip" checked>
+                  <span class="checkmark"></span>
+                  <span class="file-ext">.zip</span>
+                </label>
+              </div>
+            </details>
           </div>
           
           <div class="action-buttons">

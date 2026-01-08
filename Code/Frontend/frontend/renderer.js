@@ -10,6 +10,7 @@ const stopBtn = document.getElementById('stop-btn');
 const refreshBtn = document.getElementById('refresh-btn');
 const clearOutputBtn = document.getElementById('clear-output');
 const copyOutputBtn = document.getElementById('copy-output');
+const selectAllBtn = document.getElementById('select-all-btn');
 const outputDiv = document.getElementById('output');
 const progressContainer = document.getElementById('progress-container');
 const progressFill = document.getElementById('progress-fill');
@@ -268,6 +269,48 @@ refreshBtn.addEventListener('click', async () => {
   clearOutput();
   appendOutput('App reset. Ready to download invoices...');
 });
+
+selectAllBtn.addEventListener('click', () => {
+  const checkboxes = document.querySelectorAll('input[name="filetype"]');
+  const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+  
+  // Toggle: if all are checked, uncheck all; otherwise, check all
+  checkboxes.forEach(cb => {
+    cb.checked = !allChecked;
+  });
+  
+  // Update button text and count
+  updateFileTypeCount();
+});
+
+// Update file type count display
+function updateFileTypeCount() {
+  const checkboxes = document.querySelectorAll('input[name="filetype"]');
+  const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+  const totalCount = checkboxes.length;
+  const allChecked = checkedCount === totalCount;
+  
+  const selectedCountEl = document.getElementById('selected-count');
+  const selectAllBtn = document.getElementById('select-all-btn');
+  
+  if (checkedCount === 0) {
+    selectedCountEl.textContent = 'No file types selected';
+  } else if (allChecked) {
+    selectedCountEl.textContent = `All file types selected (${totalCount})`;
+  } else {
+    selectedCountEl.textContent = `${checkedCount} of ${totalCount} file types selected`;
+  }
+  
+  selectAllBtn.textContent = allChecked ? 'Deselect All' : 'Select All';
+}
+
+// Add change listeners to all checkboxes
+document.querySelectorAll('input[name="filetype"]').forEach(cb => {
+  cb.addEventListener('change', updateFileTypeCount);
+});
+
+// Initialize count on load
+updateFileTypeCount();
 
 clearOutputBtn.addEventListener('click', () => {
   clearOutput();
