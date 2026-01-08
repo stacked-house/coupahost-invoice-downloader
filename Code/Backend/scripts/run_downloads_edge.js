@@ -154,8 +154,10 @@ const gracefulShutdown = async () => {
   console.log('\n');
   console.log('⏸ Stop requested - finishing current file...');
   
-  // Give it 1.5 seconds for current operation to finish and loop to break naturally
-  // If process is still running after 1.5s, force summary and exit
+  // Windows needs more time for output to be flushed to console
+  const timeout = process.platform === 'win32' ? 3000 : 1500;
+  
+  // Give it time for current operation to finish and loop to break naturally
   setTimeout(async () => {
     printSummary();
     
@@ -167,7 +169,7 @@ const gracefulShutdown = async () => {
     }
     
     process.exit(0);
-  }, 1500); // 1.5 second grace period (frontend waits 2 seconds)
+  }, timeout);
 };
 
 process.on('SIGTERM', gracefulShutdown); // Unix
