@@ -21,6 +21,9 @@ attrib +h "vulkan-1.dll" 2>nul
 attrib +h "resources" /d 2>nul
 attrib +h "locales" /d 2>nul
 
+:: Hide Application Files folder
+attrib +h "Application Files" /d 2>nul
+
 :: Create desktop shortcut
 echo Creating desktop shortcut...
 set SCRIPT="%TEMP%\CreateShortcut.vbs"
