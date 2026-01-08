@@ -106,7 +106,7 @@ function printSummary() {
     }
     
     console.log('📊 Summary:');
-    console.log(`   Fully Processed: ${processedInvoices - (shouldStop && currentInvoiceFileCount < currentInvoiceTotalFiles ? 1 : 0)} invoice(s)`);
+    console.log(`   Fully Processed: ${processedInvoices} invoice(s)`);
     console.log(`   Total Files Downloaded: ${totalDownloads} file(s)`);
     
     if (failedDownloads.length > 0) {
@@ -148,14 +148,14 @@ function printSummary() {
   }
 }
 
-// Handle graceful shutdown on SIGTERM (stop button)
-process.on('SIGTERM', async () => {
+// Handle graceful shutdown on SIGTERM (stop button) and Windows exit signals
+const gracefulShutdown = async () => {
   shouldStop = true;
   console.log('\n');
   console.log('⏸ Stop requested - finishing current file...');
   
-  // Give it 10 seconds for current operation to finish and loop to break naturally
-  // If process is still running after 10s, force summary and exit
+  // Give it 1.5 seconds for current operation to finish and loop to break naturally
+  // If process is still running after 1.5s, force summary and exit
   setTimeout(async () => {
     printSummary();
     
@@ -167,8 +167,21 @@ process.on('SIGTERM', async () => {
     }
     
     process.exit(0);
-  }, 10000); // 10 second grace period for clean shutdown
-});
+  }, 1500); // 1.5 second grace period (frontend waits 2 seconds)
+};
+
+process.on('SIGTERM', gracefulShutdown); // Unix
+process.on('SIGINT', gracefulShutdown);  // Ctrl+C
+if (process.platform === 'win32') {
+  // Windows-specific signals
+  process.on('SIGBREAK', gracefulShutdown);
+  // Also handle when parent process dies
+  process.on('beforeExit', () => {
+    if (shouldStop) {
+      printSummary();
+    }
+  });
+}
 
 /**
  * Sanitize a string for use as a folder name
@@ -344,9 +357,37 @@ async function waitForNewDownload(beforeSnapshot, timeoutMs = 30000) {
       
       // New file or modified file
       if (!beforeSnapshot[file] || mtime > beforeSnapshot[file]) {
-        // Wait a moment to ensure file is complete
-        await new Promise(resolve => setTimeout(resolve, 500));
-        return file;
+        // Wait for file to stabilize (no size changes for 1 second)
+        const filePath = path.join(downloadDir, file);
+        let previousSize = -1;
+        let stableCount = 0;
+        
+        for (let i = 0; i < 5; i++) { // Check up to 5 times (5 seconds max)
+          try {
+            const stat = fs.statSync(filePath);
+            const currentSize = stat.size;
+            
+            if (currentSize === previousSize && currentSize > 0) {
+              stableCount++;
+              if (stableCount >= 2) { // Stable for 2 checks (1 second)
+                return file;
+              }
+            } else {
+              stableCount = 0;
+            }
+            
+            previousSize = currentSize;
+            await new Promise(resolve => setTimeout(resolve, 500));
+          } catch (e) {
+            // File might have been moved/deleted, break inner loop
+            break;
+          }
+        }
+        
+        // If we get here, file exists and hasn't changed recently
+        if (previousSize > 0) {
+          return file;
+        }
       }
     }
   }
@@ -470,7 +511,6 @@ async function main() {
     // Check if user requested stop
     if (shouldStop) {
       console.log('');
-      console.log('⏸ Download stopped by user');
       break;
     }
     
@@ -754,6 +794,11 @@ async function main() {
       }
     }
     
+    // If stopped, break out of retry loop immediately
+    if (shouldStop) {
+      break;
+    }
+    
     processedInvoices++;
     
     // Navigate back to the invoice list for the next iteration
@@ -801,6 +846,9 @@ async function main() {
   
   // Print summary
   printSummary();
+  
+  // Ensure output is flushed before disconnecting
+  await new Promise(resolve => setTimeout(resolve, 100));
   
   // Disconnect browser (wrapped in try-catch to avoid errors if already disconnected)
   try {

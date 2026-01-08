@@ -144,14 +144,30 @@ ipcMain.handle('start-download', async (event, url, script, configFile, fileType
   const jsonPath = path.join(scriptsDir, configFile || 'Download_Invoices.json');
   
   // Find Node.js - try common paths
+  const fs = require('fs');
   let node = 'node'; // Default to PATH
+  
   if (process.platform === 'darwin') {
     // macOS common paths
-    const fs = require('fs');
     const nodePaths = [
       '/opt/homebrew/bin/node',
       '/usr/local/bin/node',
-      '/usr/bin/node'
+      '/usr/bin/node',
+      process.execPath.replace('Electron', 'node') // Try Electron's node
+    ];
+    for (const p of nodePaths) {
+      if (fs.existsSync(p)) {
+        node = p;
+        break;
+      }
+    }
+  } else if (process.platform === 'win32') {
+    // Windows common paths
+    const nodePaths = [
+      path.join(process.env.ProgramFiles || 'C:\\Program Files', 'nodejs', 'node.exe'),
+      path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'nodejs', 'node.exe'),
+      path.join(process.env.APPDATA || '', 'npm', 'node.exe'),
+      path.join(process.env.LOCALAPPDATA || '', 'Programs', 'nodejs', 'node.exe')
     ];
     for (const p of nodePaths) {
       if (fs.existsSync(p)) {
@@ -171,7 +187,10 @@ ipcMain.handle('start-download', async (event, url, script, configFile, fileType
   
   const env = {
     ...process.env,
-    NODE_PATH: nodeModulesPath
+    NODE_PATH: nodeModulesPath,
+    PATH: process.env.PATH + (process.platform === 'win32' 
+      ? ';C:\\Program Files\\nodejs;C:\\Program Files (x86)\\nodejs' 
+      : ':/usr/local/bin:/opt/homebrew/bin:/usr/bin') // Ensure common paths
   };
   
   // Start preventing system sleep
@@ -182,7 +201,8 @@ ipcMain.handle('start-download', async (event, url, script, configFile, fileType
   return new Promise((resolve) => {
     const proc = spawn(node, [scriptPath, '--json', jsonPath, '--browserUrl', 'http://127.0.0.1:9222', '--target-url', url, '--file-types', fileTypesArg], { 
       stdio: 'pipe',
-      env: env
+      env: env,
+      shell: false // Use direct spawn for better control
     });
     currentDownloadProcess = proc;
     
@@ -223,7 +243,14 @@ ipcMain.handle('start-download', async (event, url, script, configFile, fileType
 ipcMain.handle('stop-download', async () => {
   if (currentDownloadProcess) {
     try {
-      currentDownloadProcess.kill('SIGTERM');
+      // On Windows, we need to send SIGINT instead of SIGTERM
+      if (process.platform === 'win32') {
+        // Windows supports SIGINT (Ctrl+C) which the script can catch
+        currentDownloadProcess.kill('SIGINT');
+      } else {
+        // Unix systems support SIGTERM
+        currentDownloadProcess.kill('SIGTERM');
+      }
       currentDownloadProcess = null;
       
       // Stop preventing system sleep

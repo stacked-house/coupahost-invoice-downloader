@@ -241,10 +241,15 @@ stopBtn.addEventListener('click', async () => {
   outputDiv.textContent += '\nStopping download...\n';
   const res = await window.coupaAPI.stopDownload();
   if (res.success) {
-    outputDiv.textContent += 'Download stopped by user\n';
+    // Wait 2 seconds for the script to print its summary before removing listener
+    setTimeout(() => {
+      window.coupaAPI.removeDownloadOutputListener();
+      setDownloadingState(false);
+    }, 2000);
+  } else {
+    window.coupaAPI.removeDownloadOutputListener();
+    setDownloadingState(false);
   }
-  window.coupaAPI.removeDownloadOutputListener();
-  setDownloadingState(false);
 });
 
 refreshBtn.addEventListener('click', async () => {

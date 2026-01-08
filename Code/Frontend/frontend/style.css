@@ -508,7 +508,10 @@ select:focus, input[type="text"]:focus {
   line-height: 1.5;
   user-select: text;
   -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
   cursor: text;
+  pointer-events: auto;
 }
 
 #output::-webkit-scrollbar {
