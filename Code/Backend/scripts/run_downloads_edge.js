@@ -469,17 +469,20 @@ async function main() {
       const headers = Array.from(document.querySelectorAll('table th'));
       let invoice = null;
       let supplier = null;
+      let invoicePartial = null;
       let supplierPartial = null;
       
       for (let i = 0; i < headers.length; i++) {
         const headerText = headers[i].textContent?.toLowerCase() || '';
         const trimmedHeader = headerText.trim();
         
-        // Exact match for invoice
-        if (trimmedHeader === 'invoice' && !invoice) {
+        // Prioritize "Invoice #" or "Invoice" over "Invoice Date"
+        if ((trimmedHeader === 'invoice #' || trimmedHeader === 'invoice') && !invoice) {
+          invoice = i + 1; // XPath is 1-indexed
+        } else if (headerText.includes('invoice #') && !invoice) {
           invoice = i + 1;
-        } else if (headerText.includes('invoice') && !invoice) {
-          invoice = i + 1;
+        } else if (headerText.includes('invoice') && !invoice && !invoicePartial) {
+          invoicePartial = i + 1; // Store partial match as fallback
         }
         
         // Exact match for supplier (prioritize)
@@ -490,7 +493,10 @@ async function main() {
         }
       }
       
-      // Use partial match if no exact match found
+      // Use partial matches if no exact match found
+      if (!invoice && invoicePartial) {
+        invoice = invoicePartial;
+      }
       if (!supplier && supplierPartial) {
         supplier = supplierPartial;
       }
