@@ -246,14 +246,14 @@ ipcMain.handle('start-download', async (event, url, script, configFile, fileType
 ipcMain.handle('stop-download', async () => {
   if (currentDownloadProcess) {
     try {
-      // On Windows, we need to send SIGINT instead of SIGTERM
-      if (process.platform === 'win32') {
-        // Windows supports SIGINT (Ctrl+C) which the script can catch
-        currentDownloadProcess.kill('SIGINT');
-      } else {
-        // Unix systems support SIGTERM
-        currentDownloadProcess.kill('SIGTERM');
-      }
+      // Send SIGTERM - the script will handle graceful shutdown
+      currentDownloadProcess.kill('SIGTERM');
+      
+      // Don't set to null immediately - let the 'close' event handler do it
+      // This allows the output to be captured before cleanup
+      
+      return { success: true };
+    } catch (err) {
       currentDownloadProcess = null;
       
       // Stop preventing system sleep
@@ -262,8 +262,6 @@ ipcMain.handle('stop-download', async () => {
         powerSaveBlockerId = null;
       }
       
-      return { success: true };
-    } catch (err) {
       return { success: false, error: err.message };
     }
   }
