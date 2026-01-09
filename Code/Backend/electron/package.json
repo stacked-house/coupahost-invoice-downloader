@@ -15,6 +15,7 @@
   "build": {
     "appId": "com.stackedhouse.coupa-downloader",
     "productName": "Coupa Invoice Downloader",
+    "afterPack": "./build-hook.js",
     "directories": {
       "output": "dist"
     },

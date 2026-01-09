@@ -144,7 +144,7 @@ ipcMain.handle('start-download', async (event, url, script, configFile, fileType
   const scriptPath = path.join(scriptsDir, script);
   const jsonPath = path.join(scriptsDir, configFile || 'Download_Invoices.json');
   
-  // Find Node.js - try common paths
+  // Find Node.js - try Electron's bundled node first, then system paths
   const fs = require('fs');
   let node = 'node'; // Default to PATH
   
@@ -163,8 +163,10 @@ ipcMain.handle('start-download', async (event, url, script, configFile, fileType
       }
     }
   } else if (process.platform === 'win32') {
-    // Windows common paths
+    // Windows - try Electron's bundled node.exe first (in same directory as app)
     const nodePaths = [
+      path.join(path.dirname(process.execPath), 'node.exe'), // Electron's node.exe in app directory
+      path.join(process.resourcesPath, 'node.exe'), // Also check resources
       path.join(process.env.ProgramFiles || 'C:\\Program Files', 'nodejs', 'node.exe'),
       path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'nodejs', 'node.exe'),
       path.join(process.env.APPDATA || '', 'npm', 'node.exe'),
