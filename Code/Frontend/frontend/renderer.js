@@ -241,11 +241,12 @@ stopBtn.addEventListener('click', async () => {
   outputDiv.textContent += '\nStopping download...\n';
   const res = await window.coupaAPI.stopDownload();
   if (res.success) {
-    // Wait 5.5 seconds for the script to print its summary (Windows needs more time for console I/O)
+    // Wait 2 seconds for the script to print its summary
+    // The backend now prints immediately instead of using a timeout
     setTimeout(() => {
       window.coupaAPI.removeDownloadOutputListener();
       setDownloadingState(false);
-    }, 5500);
+    }, 2000);
   } else {
     window.coupaAPI.removeDownloadOutputListener();
     setDownloadingState(false);
