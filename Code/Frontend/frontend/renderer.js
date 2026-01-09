@@ -241,12 +241,47 @@ stopBtn.addEventListener('click', async () => {
   outputDiv.textContent += '\nStopping download...\n';
   const res = await window.coupaAPI.stopDownload();
   if (res.success) {
-    // Wait 2 seconds for the script to print its summary
-    // The backend now prints immediately instead of using a timeout
+    // Wait for process to exit
     setTimeout(() => {
+      // Generate summary from the captured output
+      const output = outputDiv.textContent;
+      
+      // Parse the output to get statistics
+      const invoiceMatches = output.match(/Opening invoice (\d+)\/(\d+)/g) || [];
+      const downloadMatches = output.match(/Downloading \d+\/\d+\.\.\. ✓/g) || [];
+      const folderMatches = output.match(/📁 Folder: ([^\n]+)/g) || [];
+      
+      // Get the last invoice info
+      let lastInvoiceNum = 0;
+      let totalInvoices = 0;
+      if (invoiceMatches.length > 0) {
+        const lastMatch = invoiceMatches[invoiceMatches.length - 1].match(/Opening invoice (\d+)\/(\d+)/);
+        if (lastMatch) {
+          lastInvoiceNum = parseInt(lastMatch[1]);
+          totalInvoices = parseInt(lastMatch[2]);
+        }
+      }
+      
+      // Count completed invoices (ones that finished all downloads)
+      // An invoice is complete if we see downloads for it
+      const completedInvoices = folderMatches.length > 0 ? Math.max(0, lastInvoiceNum - 1) : 0;
+      const totalDownloads = downloadMatches.length;
+      
+      // Generate the summary
+      let summary = '\n\n========================================\n';
+      summary += '⏸ Download Stopped\n\n';
+      summary += '📍 Stopped at:\n';
+      summary += `   Invoice ${lastInvoiceNum} of ${totalInvoices}\n\n`;
+      summary += '📊 Summary:\n';
+      summary += `   Fully Processed: ${completedInvoices} invoice(s)\n`;
+      summary += `   Total Files Downloaded: ${totalDownloads} file(s)\n`;
+      summary += '========================================\n';
+      
+      outputDiv.textContent += summary;
+      
       window.coupaAPI.removeDownloadOutputListener();
       setDownloadingState(false);
-    }, 2000);
+    }, 500);
   } else {
     window.coupaAPI.removeDownloadOutputListener();
     setDownloadingState(false);

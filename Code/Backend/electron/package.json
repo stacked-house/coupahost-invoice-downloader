@@ -32,7 +32,7 @@
         "to": "frontend"
       },
       {
-        "from": "node_modules",
+        "from": "prod_modules/node_modules",
         "to": "node_modules"
       }
     ],

@@ -148,14 +148,11 @@ function printSummary() {
   }
 }
 
-// Handle graceful shutdown on SIGTERM (stop button) and Windows exit signals
+// Handle graceful shutdown on SIGTERM (stop button) - works on Mac
 const gracefulShutdown = async () => {
   shouldStop = true;
   console.log('\n');
   console.log('⏸ Stop requested - finishing current file...');
-  
-  // Print summary immediately (don't wait for timeout on Windows)
-  printSummary();
   
   // Disconnect browser
   if (activeBrowser) {
@@ -164,31 +161,17 @@ const gracefulShutdown = async () => {
     } catch (e) {}
   }
   
-  // On Windows, ensure output is flushed before exiting
-  if (process.platform === 'win32') {
-    // Force flush stdout/stderr
-    if (process.stdout.write('')) {
-      process.exit(0);
-    } else {
-      process.stdout.once('drain', () => process.exit(0));
-    }
-  } else {
+  // Print summary
+  printSummary();
+  
+  // Exit after brief delay to flush output
+  setTimeout(() => {
     process.exit(0);
-  }
+  }, 100);
 };
 
-process.on('SIGTERM', gracefulShutdown); // Unix
-process.on('SIGINT', gracefulShutdown);  // Ctrl+C
-if (process.platform === 'win32') {
-  // Windows-specific signals
-  process.on('SIGBREAK', gracefulShutdown);
-  // Also handle when parent process dies
-  process.on('beforeExit', () => {
-    if (shouldStop) {
-      printSummary();
-    }
-  });
-}
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
 
 /**
  * Sanitize a string for use as a folder name
@@ -260,10 +243,6 @@ function ensureInvoiceFolder(invoiceName, invoiceDate = '', supplierName = '') {
   if (supplierName) {
     let sanitizedSupplier = sanitizeFolderName(supplierName);
     if (sanitizedSupplier && sanitizedSupplier !== 'Unknown') {
-      // Truncate supplier name to 80 characters max to avoid path length issues
-      if (sanitizedSupplier.length > 80) {
-        sanitizedSupplier = sanitizedSupplier.substring(0, 80).trim();
-      }
       parts.push(sanitizedSupplier);
     }
   }
@@ -276,12 +255,6 @@ function ensureInvoiceFolder(invoiceName, invoiceDate = '', supplierName = '') {
     folderName = parts.join(' - ');
   } else {
     folderName = `Unknown_${Date.now()}`;
-  }
-  
-  // Final safety check - ensure total folder name doesn't exceed 200 chars
-  // This leaves room for the full path (downloadDir + folderName + filename)
-  if (folderName.length > 200) {
-    folderName = folderName.substring(0, 200).trim();
   }
   
   const folderPath = path.join(downloadDir, folderName);
