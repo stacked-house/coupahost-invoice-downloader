@@ -154,22 +154,27 @@ const gracefulShutdown = async () => {
   console.log('\n');
   console.log('⏸ Stop requested - finishing current file...');
   
-  // Windows needs more time for output to be flushed to console
-  const timeout = process.platform === 'win32' ? 5000 : 1500;
+  // Print summary immediately (don't wait for timeout on Windows)
+  printSummary();
   
-  // Give it time for current operation to finish and loop to break naturally
-  setTimeout(async () => {
-    printSummary();
-    
-    // Disconnect browser
-    if (activeBrowser) {
-      try {
-        await activeBrowser.disconnect();
-      } catch (e) {}
+  // Disconnect browser
+  if (activeBrowser) {
+    try {
+      await activeBrowser.disconnect();
+    } catch (e) {}
+  }
+  
+  // On Windows, ensure output is flushed before exiting
+  if (process.platform === 'win32') {
+    // Force flush stdout/stderr
+    if (process.stdout.write('')) {
+      process.exit(0);
+    } else {
+      process.stdout.once('drain', () => process.exit(0));
     }
-    
+  } else {
     process.exit(0);
-  }, timeout);
+  }
 };
 
 process.on('SIGTERM', gracefulShutdown); // Unix
