@@ -7,6 +7,23 @@ Complete guide for building and packaging Coupa Invoice Downloader installers fo
 - Node.js 16+ installed
 - Git repository cloned
 - All dependencies installed: `npm install`
+- **For Windows builds on Mac:** Pre-downloaded node.exe in `bundled-binaries/` folder
+
+## Important: Node.js Bundling for Windows
+
+The Windows build **includes Node.js** (node.exe) bundled inside the app. This ensures the app works on Windows machines that don't have Node.js installed.
+
+### Setting Up node.exe (First Time Only)
+
+If `bundled-binaries/node.exe` doesn't exist, download it:
+
+```bash
+cd Code/Backend/electron
+mkdir -p bundled-binaries
+curl -L -o bundled-binaries/node.exe https://nodejs.org/dist/v20.11.0/win-x64/node.exe
+```
+
+The build hook (`build-hook.js`) automatically copies this into the Windows build.
 
 ## Directory Structure
 
