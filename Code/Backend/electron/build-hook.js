@@ -13,43 +13,17 @@ exports.default = async function(context) {
     const appOutDir = context.appOutDir;
     const targetNodePath = path.join(appOutDir, 'node.exe');
     
-    // Try to find node.exe on the system
-    let sourceNodePath = null;
+    // Use the pre-downloaded node.exe from bundled-binaries
+    const sourceNodePath = path.join(__dirname, 'bundled-binaries', 'node.exe');
     
-    const possiblePaths = [
-      'C:\\Program Files\\nodejs\\node.exe',
-      'C:\\Program Files (x86)\\nodejs\\node.exe',
-      path.join(process.env.LOCALAPPDATA || '', 'Programs', 'nodejs', 'node.exe'),
-      path.join(process.env.APPDATA || '', 'npm', 'node.exe')
-    ];
-    
-    for (const p of possiblePaths) {
-      if (fs.existsSync(p)) {
-        sourceNodePath = p;
-        break;
-      }
-    }
-    
-    // If we can't find it in standard locations, try using 'where node' command
-    if (!sourceNodePath) {
-      try {
-        const output = execSync('where node', { encoding: 'utf8' });
-        const paths = output.split('\n').map(p => p.trim()).filter(Boolean);
-        if (paths.length > 0) {
-          sourceNodePath = paths[0];
-        }
-      } catch (err) {
-        console.warn('Could not locate node.exe using "where" command');
-      }
-    }
-    
-    if (sourceNodePath && fs.existsSync(sourceNodePath)) {
+    if (fs.existsSync(sourceNodePath)) {
       console.log(`Copying node.exe from: ${sourceNodePath}`);
       fs.copyFileSync(sourceNodePath, targetNodePath);
       console.log(`✓ node.exe bundled successfully at: ${targetNodePath}`);
     } else {
-      console.warn('⚠️  Warning: Could not find node.exe to bundle with the app.');
-      console.warn('   Users will need to have Node.js installed on their system.');
+      console.error('❌ Error: bundled-binaries/node.exe not found!');
+      console.error('   Please download node.exe first.');
+      throw new Error('node.exe not found in bundled-binaries/');
     }
   }
 };

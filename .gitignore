@@ -9,6 +9,9 @@ out/
 *.zip
 *.blockmap
 
+# Bundled binaries (large files)
+Code/Backend/electron/bundled-binaries/
+
 # OS files
 .DS_Store
 Thumbs.db
